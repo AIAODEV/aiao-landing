@@ -82,9 +82,13 @@
   function render(rows){
     var list = document.getElementById("list");
     var count = document.getElementById("count");
-    if(!rows.length){ list.innerHTML = '<div class="empty">Ingen aktive POC\'er endnu.</div>'; count.textContent=""; return; }
+    if(!rows.length){
+      var msg = ALL.length ? "Ingen match." : "Ingen aktive POC'er endnu.";
+      list.innerHTML = '<div class="empty">'+esc(msg)+'</div>'; count.textContent=""; return;
+    }
     list.innerHTML = rows.map(function(r){
       var live = !!r.is_live;
+      var openable = /^https:\/\//i.test(r.live_url || "");
       return '<div class="row">'
         + '<div class="rowhead">'
         +   '<span class="ava">'+esc(initials(r.ejer_navn))+'</span>'
@@ -92,7 +96,7 @@
         +   '<span class="spacer"></span>'
         +   (r.ejer_handle?'<span class="handle">@'+esc(r.ejer_handle)+'</span>':'')
         +   '<span class="badge'+(live?' live':'')+'">'+(live?'Live':'—')+'</span>'
-        +   (r.live_url?'<a class="open" href="'+esc(r.live_url)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ Åbn</a>':'')
+        +   (openable?'<a class="open" href="'+esc(r.live_url)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ Åbn</a>':'')
         + '</div>'
         + '<div class="detail">'
         +   '<h3>Ejer</h3><div>'+esc(r.ejer_navn||"—")+(r.ejer_afdeling?' · '+esc(r.ejer_afdeling):'')+'</div>'
