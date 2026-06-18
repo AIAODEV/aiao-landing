@@ -39,3 +39,9 @@ flowet på `aiao.dev/flow`, oversigten på `aiao.dev/repos`.
 
 Rediger **ikke** disse filer direkte — de er kompilerede. Lav ændringer i
 design-system-projektet (`ui_kits/aiao-dev/`) og gen-kompiler.
+
+> **Undtagelse — `/repos` (2026-06-18):** `repos.html` er IKKE længere kompileret fra
+> `ui_kits/aiao-dev/`. Den er en selvstændig, fetch-drevet side (vanilla JS, embedded CSS)
+> der henter live POC'er fra control-planens `GET /public/repos`. Redigér den direkte her.
+> Forudsætning for live: `https://www.aiao.dev` skal være i backendens `CORS_ORIGINS` (Railway).
+> `index.html` og `flow.html` følger fortsat `ui_kits`-pipelinen.
