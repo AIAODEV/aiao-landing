@@ -1,6 +1,6 @@
 # aiao.dev — deploy
 
-Tre selvstændige, statiske HTML-filer. Hver fil har logo, fonte, CSS og
+Selvstændige, statiske HTML-filer. Hver fil har logo, fonte, CSS og
 komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 
 | Fil | Rute (Vercel) |
@@ -8,9 +8,16 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 | `index.html` | `/` |
 | `flow.html` | `/flow` |
 | `repos.html` | `/repos` |
+| `byg.html` | `/byg` |
 
 `vercel.json` sætter `cleanUrls` → `flow.html` serveres på `/flow`,
-`repos.html` på `/repos`. Intern navigation linker mellem siderne.
+`repos.html` på `/repos`, `byg.html` på `/byg`. Intern navigation linker mellem siderne.
+
+> **NB:** `byg.html` ("Hvad kan jeg bygge?") er en HÅND-skrevet standalone-side
+> (ikke en kompileret bundle), så den kan redigeres direkte. Den linker TIL de
+> andre sider, men topmenuen i de kompilerede sider (`index/flow/repos`) linker
+> endnu IKKE til `/byg` — det kræver en ændring i kilde-projektet
+> (`ui_kits/aiao-dev/`) + gen-kompilering.
 
 > React + Babel hentes fra unpkg-CDN ved runtime (kræver internet — fint for et
 > live site). Alt andet er indlejret.

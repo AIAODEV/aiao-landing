@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="da">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hvad kan jeg bygge? · aiao.dev</title>
+<meta name="description" content="Hvad du kan bygge på AO Johansens interne Claude Code-platform — database, frontend, backend og AI. Til inspiration." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ao-red:#E60003; --ao-red-bright:#fe0000;
+    --paper:#faf9f5; --surface:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b;
+    --line:#e6e6e6; --line-2:#d2d2d2; --chip:#f1f0ec;
+    --display:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);line-height:1.55;-webkit-font-smoothing:antialiased}
+  a{color:inherit}
+  .wrap{max-width:960px;margin:0 auto;padding:0 clamp(18px,4vw,40px)}
+
+  /* top bar */
+  .nav{position:sticky;top:0;z-index:5;background:rgba(250,249,245,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .nav .row{display:flex;align-items:center;gap:18px;height:60px}
+  .brand{font-family:var(--mono);font-weight:700;letter-spacing:.02em;text-decoration:none;font-size:15px}
+  .brand .dot{color:var(--ao-red)}
+  .nav nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+  .nav nav a{font-family:var(--mono);font-size:13px;text-decoration:none;color:var(--muted);padding:7px 11px;border-radius:8px}
+  .nav nav a:hover{background:var(--chip);color:var(--ink)}
+  .nav nav a.here{color:var(--ink);background:var(--chip)}
+
+  /* hero */
+  .hero{padding:clamp(40px,7vw,80px) 0 8px}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ao-red);font-weight:700;margin:0 0 14px}
+  h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,6.5vw,60px);line-height:1.04;letter-spacing:-0.02em;margin:0 0 16px}
+  .lead{font-size:clamp(17px,2.3vw,21px);color:var(--muted);max-width:60ch;margin:0}
+  .lead b{color:var(--ink)}
+
+  h2{font-family:var(--display);font-weight:700;font-size:clamp(22px,3.4vw,30px);letter-spacing:-0.01em;margin:clamp(46px,7vw,72px) 0 6px}
+  .sub{color:var(--muted);margin:0 0 22px;max-width:64ch}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:16px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .card .ic{font-size:24px}
+  .card h3{font-family:var(--display);font-weight:700;margin:12px 0 6px;font-size:18px}
+  .card h3 .tag{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.04em;background:#16A34A;color:#fff;border-radius:6px;padding:2px 7px;vertical-align:middle;margin-left:7px;text-transform:uppercase}
+  .card p{margin:0 0 12px;color:var(--muted);font-size:14.5px}
+  .card ul{margin:0;padding-left:18px;font-size:14px}
+  .card ul li{margin:4px 0}
+
+  .auto{background:var(--ink);color:#fff;border-radius:20px;padding:26px;margin-top:18px}
+  .auto h3{font-family:var(--display);font-weight:700;margin:0 0 6px;font-size:20px;color:#fff}
+  .auto p{margin:0 0 16px;color:#cbcbcb;font-size:15px}
+  .pills{display:flex;flex-wrap:wrap;gap:9px}
+  .pill{font-family:var(--mono);font-size:12.5px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:7px 12px}
+
+  .steps{display:grid;gap:11px;counter-reset:s}
+  .step{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px 16px 58px;position:relative}
+  .step:before{counter-increment:s;content:counter(s);position:absolute;left:16px;top:15px;width:28px;height:28px;border-radius:50%;background:var(--ao-red);color:#fff;font-family:var(--mono);font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .step b{font-family:var(--display);display:block;margin-bottom:2px}
+  .step span{color:var(--muted);font-size:14.5px}
+
+  code{font-family:var(--mono);background:var(--chip);border-radius:6px;padding:2px 7px;font-size:.88em}
+
+  .ideas{display:grid;grid-template-columns:repeat(auto-fit,minmax(244px,1fr));gap:12px}
+  .idea{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ao-red);border-radius:0 14px 14px 0;padding:15px 17px}
+  .idea b{font-family:var(--display);display:block;font-size:15.5px;margin-bottom:3px}
+  .idea span{color:var(--muted);font-size:13.5px}
+
+  .cta{margin-top:clamp(46px,7vw,72px);background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:clamp(24px,4vw,40px);text-align:center}
+  .cta h2{margin:0 0 8px}
+  .cta p{color:var(--muted);margin:0 0 18px}
+  .btn{display:inline-block;font-family:var(--mono);font-weight:700;font-size:14px;text-decoration:none;background:var(--ao-red);color:#fff;border-radius:10px;padding:12px 20px}
+  .btn:hover{background:var(--ao-red-bright)}
+
+  footer{margin:40px 0 56px;color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:18px}
+</style>
+</head>
+<body>
+  <div class="nav">
+    <div class="wrap row">
+      <a class="brand" href="/">aiao<span class="dot">.</span>dev</a>
+      <nav>
+        <a href="/">Forside</a>
+        <a href="/flow">Flow</a>
+        <a href="/repos">POC'er</a>
+        <a href="/byg" class="here">Hvad kan jeg bygge?</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <header class="hero">
+      <p class="kicker">AO Johansen · intern Claude Code-platform</p>
+      <h1>Hvad kan jeg bygge?</h1>
+      <p class="lead">Du beskriver din idé til <b>Claude Code</b> i VS Code — og får en rigtig web-app med database, backend, frontend og AI, live på dit eget <code>pocN.aiao.dev</code>. Ingen DevOps, ingen opsætning. Bare idéen.</p>
+    </header>
+
+    <h2>De fire byggesten</h2>
+    <p class="sub">Hver ny POC kommer med det hele klar fra start. Du bygger oven på det ved at tale med Claude.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="ic">🖥️</div>
+        <h3>Frontend</h3>
+        <p>En rigtig hjemmeside med AO's eget udseende — klar fra dag ét.</p>
+        <ul>
+          <li>Next.js + TypeScript</li>
+          <li>AO-designsystem: farver, typografi, 81 AO-ikoner</li>
+          <li>Valgfri adgangskode-beskyttelse</li>
+          <li>Henter data direkte fra databasen</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="ic">⚙️</div>
+        <h3>Backend</h3>
+        <p>Et API til logik, beregninger og integration til interne systemer.</p>
+        <ul>
+          <li>FastAPI (Python)</li>
+          <li>Egne API-endpoints</li>
+          <li>Nøgler &amp; hemmeligheder sikkert server-side</li>
+          <li>Taler med database + eksterne tjenester</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="ic">🗄️</div>
+        <h3>Database</h3>
+        <p>Din egen database — opret tabeller ved at bede Claude om det.</p>
+        <ul>
+          <li>Supabase (Postgres), dit eget aflukke</li>
+          <li><i>"opret en tabel til kunder"</i> → klaret</li>
+          <li>Ingen DB-adgang eller SQL-bøvl</li>
+          <li>Sikker adgang pr. række (RLS)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="ic">🤖</div>
+        <h3>AI / sprogmodel <span class="tag">indbygget</span></h3>
+        <p>Tilføj intelligens — chat, opsummering, klassifikation, udtræk.</p>
+        <ul>
+          <li>Claude- og OpenAI-modeller via ét endpoint</li>
+          <li>Ingen API-nøgle at skaffe</li>
+          <li>Læs, skriv, sortér og svar</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="auto">
+      <h3>…og det her sker helt automatisk 🚀</h3>
+      <p>Du skal aldrig røre servere, hosting eller certifikater. Platformen klarer maskinrummet.</p>
+      <div class="pills">
+        <span class="pill">Live på pocN.aiao.dev</span>
+        <span class="pill">Hosting</span>
+        <span class="pill">SSL / https</span>
+        <span class="pill">Git-repo</span>
+        <span class="pill">Database klargjort</span>
+        <span class="pill">Deploy ved hver ændring</span>
+      </div>
+    </div>
+
+    <h2>Sådan bygger du — i praksis</h2>
+    <p class="sub">Du behøver ikke være udvikler. Du fører en samtale.</p>
+    <div class="steps">
+      <div class="step"><b>Få din POC</b><span>En admin opretter den i platformen — du får et repo og et live-link med det samme.</span></div>
+      <div class="step"><b>Åbn i Claude Code (VS Code)</b><span>Beskriv idéen i almindeligt sprog: <i>"byg en side hvor man kan søge i vores produkter og få et AI-svar."</i></span></div>
+      <div class="step"><b>Claude bygger</b><span>Den skriver frontend, backend og opretter de tabeller der skal bruges. Se det live med <code>make dev</code>.</span></div>
+      <div class="step"><b>Del det</b><span>Når det virker, er det allerede online på <code>pocN.aiao.dev</code> — klar til at vise frem.</span></div>
+    </div>
+
+    <h2>Til inspiration</h2>
+    <p class="sub">Eksempler fra hverdagen hos AO. Start småt: byg det simpleste der beviser idéen.</p>
+    <div class="ideas">
+      <div class="idea"><b>🔎 AI-produktsøgning</b><span>Søg i sortimentet i naturligt sprog og få ét samlet svar — ikke bare en liste.</span></div>
+      <div class="idea"><b>📦 Leverings-overblik</b><span>Et dashboard der samler status på ordrer/leveringer ét sted.</span></div>
+      <div class="idea"><b>💬 Intern FAQ-bot</b><span>En chat der svarer kolleger ud fra jeres egne dokumenter og vejledninger.</span></div>
+      <div class="idea"><b>📝 Formular → database</b><span>Saml indmeldinger (fejl, ønsker, tilmeldinger) i en tabel med pænt overblik.</span></div>
+      <div class="idea"><b>🏷️ Auto-klassifikation</b><span>Lad AI sortere/tagge indkommende tekst (mails, sager, varer).</span></div>
+      <div class="idea"><b>📊 Lille dashboard</b><span>Visualisér tal fra en tabel — KPI'er, kampagner, lager, aktivitet.</span></div>
+      <div class="idea"><b>📄 Dokument-opsummering</b><span>Indsæt en lang tekst, få et kort brugbart resumé på dansk.</span></div>
+      <div class="idea"><b>🧪 Konfigurator / beregner</b><span>En guide der regner sig frem til det rigtige produkt eller pris.</span></div>
+    </div>
+
+    <div class="cta">
+      <h2>Har du en idé?</h2>
+      <p>Det mindste der beviser værdien er nok til at starte. Claude skriver koden — platformen klarer driften.</p>
+      <a class="btn" href="/repos">SE HVAD ANDRE HAR BYGGET →</a>
+    </div>
+
+    <footer>
+      AO Johansens interne Claude Code-platform · Next.js · FastAPI · Supabase · AI Gateway · Kontakt platform-ejer (JAW) for at få din egen POC.
+    </footer>
+  </div>
+</body>
+</html>
