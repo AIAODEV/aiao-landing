@@ -9,9 +9,12 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 | `flow.html` | `/flow` |
 | `repos.html` | `/repos` |
 | `byg.html` | `/byg` |
+| `ledelse.html` | `/ledelse` |
 
 `vercel.json` sætter `cleanUrls` → `flow.html` serveres på `/flow`,
-`repos.html` på `/repos`, `byg.html` på `/byg`. Intern navigation linker mellem siderne.
+`repos.html` på `/repos`, `byg.html` på `/byg`, `ledelse.html` på `/ledelse`. Intern navigation linker mellem siderne.
+
+> **NB:** `/ledelse` ("Til ledelsen — sikkerhed og governance") er bevidst **ikke** i topmenuen — et delbart link, men stadig en del af sitet (klon af flow.html med ny `LedelsePage`-komponent + `active="ledelse"`, ingen menu-tilføjelse).
 
 > **NB:** `byg.html` ("Hvad kan jeg bygge?") er en HÅND-skrevet standalone-side
 > (ikke en kompileret bundle), så den kan redigeres direkte. Topmenuen i de
