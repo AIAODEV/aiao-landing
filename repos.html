@@ -1,146 +1,133 @@
 <!doctype html>
 <!--
-  AIAO · Repos — www.aiao.dev/repos
+  AIAO · POC-oversigt — www.aiao.dev/repos
   Håndskrevet, vedligeholdelig kilde (afløser den tidligere kompilerede bundle uden kilde).
-  Ren vanilla HTML/CSS/JS — intet byg-trin. Bygget på AO's design-tokens.
-  Henter den offentlige POC-liste fra control-planen og lader brugeren åbne sin POC
-  FORBUNDET i VS Code (git-klon med origin) i ét klik — i stedet for en løsreven ZIP.
+  Ren vanilla HTML/CSS/JS — intet byg-trin. Matcher landingens fonte (Archivo + JetBrains Mono),
+  topbar og AO-farver. Henter {repos:[…]} fra GET /public/repos. Primær handling:
+  "↦ Åbn i VS Code" (forbundet git-klon). Kun offentligt-sikre felter (ingen email/schema).
 -->
 <html lang="da">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AIAO · Repos</title>
+  <title>AIAO · POC-oversigt</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Signika:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
       --red: #FE0000;
       --red-hover: #AA1F25;
       --text: #222222;
       --text-grey: #666666;
-      --page: #F7F7F7;
+      --page: #FFFFFF;
       --card: #FFFFFF;
       --line: #E6E6E6;
       --line-strong: #CCCCCC;
+      --surface-grey: #F7F7F7;
       --live: #65A91A;
       --muted-dot: #CCCCCC;
-      --font: "Signika", system-ui, -apple-system, sans-serif;
+      --font-display: "Archivo", system-ui, -apple-system, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
       --radius-lg: 16px;
       --radius-md: 8px;
       --radius-pill: 1000px;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --text: #FFFFFF;
-        --text-grey: #B1B1B1;
-        --page: #000000;
-        --card: #1A1A1A;
-        --line: #333333;
-        --line-strong: #4C4C4C;
-        --live: #8BD737;
-        --muted-dot: #4C4C4C;
+        --text: #FFFFFF; --text-grey: #B1B1B1; --page: #0A0A0A; --card: #1A1A1A;
+        --line: #333333; --line-strong: #4C4C4C; --surface-grey: #1A1A1A;
+        --live: #8BD737; --muted-dot: #4C4C4C;
       }
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
-    body {
-      font-family: var(--font);
-      background: var(--page);
-      color: var(--text);
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-    a { color: inherit; }
-    .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+    body { font-family: var(--font-display); background: var(--page); color: var(--text); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; text-decoration: none; }
+    .mono { font-family: var(--font-mono); }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
 
-    header.site {
-      border-bottom: 1px solid var(--line);
-      padding: 18px 0;
-    }
-    header.site .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; letter-spacing: -0.01em; }
-    .brand .dot { width: 12px; height: 12px; border-radius: var(--radius-pill); background: var(--red); display: inline-block; }
-    header.site nav a { color: var(--text-grey); text-decoration: none; font-weight: 600; font-size: 15px; }
-    header.site nav a:hover { color: var(--text); }
+    /* Topbar — matcher de øvrige sider */
+    header.site { border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--page); z-index: 10; }
+    header.site .nav { display: flex; align-items: center; gap: 28px; height: 64px; flex-wrap: wrap; }
+    .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 700; font-size: 19px; letter-spacing: -0.01em; }
+    .brand .dot { width: 11px; height: 11px; border-radius: var(--radius-pill); background: var(--red); }
+    .links { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+    .links a { color: var(--text-grey); font-size: 15px; font-weight: 500; }
+    .links a:hover { color: var(--text); }
+    .links a.active { color: var(--text); font-weight: 600; }
 
-    main { padding: 40px 0 64px; }
-    h1 { font-size: 30px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.02em; }
-    .lead { color: var(--text-grey); margin: 0 0 32px; font-size: 17px; }
+    main { padding: 44px 0 72px; }
+    h1 { font-size: 32px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.02em; }
+    .lead { color: var(--text-grey); margin: 0 0 32px; font-size: 17px; max-width: 60ch; }
 
-    .grid { display: grid; gap: 16px; }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-left: 4px solid var(--red);
-      border-radius: var(--radius-lg);
-      padding: 20px;
-    }
-    .card-top { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-    .card-title { flex: 1 1 240px; min-width: 0; }
-    .card-title .name { font-weight: 600; font-size: 18px; margin: 0; }
-    .card-title .sub { color: var(--text-grey); font-size: 14px; margin-top: 2px; }
-    .owner { color: var(--text-grey); font-size: 14px; margin-top: 10px; }
+    .grid { display: grid; gap: 14px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--red); border-radius: var(--radius-lg); padding: 18px 20px; }
+    .card.inactive { border-left-color: var(--line-strong); }
+    .card-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; cursor: pointer; }
+    .titleblock { flex: 1 1 220px; min-width: 0; }
+    .titleblock .name { font-weight: 600; font-size: 17px; }
+    .titleblock .name .handle { color: var(--text-grey); font-weight: 400; }
+    .titleblock .sub { color: var(--text-grey); font-size: 13px; margin-top: 2px; }
 
-    .dots { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-    .chip {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-size: 12px; color: var(--text-grey);
-      border: 1px solid var(--line); border-radius: var(--radius-pill);
-      padding: 3px 9px;
-    }
-    .chip .d { width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--muted-dot); }
+    .badge-live { color: var(--live); font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-display); font-weight: 600; font-size: 14px; cursor: pointer; padding: 8px 14px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: var(--card); color: var(--text); }
+    .btn:hover { border-color: var(--text-grey); }
+    .btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
+    .btn.primary:hover { background: var(--red-hover); border-color: var(--red-hover); }
+    .chevron { border: none; background: none; cursor: pointer; color: var(--text-grey); font-size: 15px; padding: 6px; line-height: 1; }
+    .card.open .chevron { transform: rotate(180deg); }
+
+    .dots { display: flex; gap: 7px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--text-grey); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 3px 9px; }
+    .chip .d { width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--muted-dot); }
     .chip.on .d { background: var(--text); }
     .chip.live { color: var(--live); border-color: var(--live); font-weight: 600; }
     .chip.live .d { background: var(--live); }
 
-    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
-    .btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-family: var(--font); font-weight: 600; font-size: 14px;
-      text-decoration: none; cursor: pointer;
-      padding: 9px 16px; border-radius: var(--radius-md);
-      border: 1px solid var(--line-strong); background: var(--card); color: var(--text);
-    }
-    .btn:hover { border-color: var(--text-grey); }
-    .btn.primary { background: var(--red); border-color: var(--red); color: #fff; }
-    .btn.primary:hover { background: var(--red-hover); border-color: var(--red-hover); }
+    .details { display: none; grid-template-columns: 1fr 1fr; gap: 14px 28px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .card.open .details { display: grid; }
+    .f.span { grid-column: 1 / -1; }
+    .f-label { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-grey); margin-bottom: 3px; }
+    .f-val { font-size: 14px; }
+    .f-val .muted { color: var(--text-grey); }
+    .f-val .ital { color: var(--text-grey); font-style: italic; }
+    .pill { display: inline-block; font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 2px 9px; margin: 0 6px 6px 0; color: var(--text-grey); }
 
     .state { text-align: center; color: var(--text-grey); padding: 56px 0; }
     .state.err { color: var(--red); }
-    .hint { color: var(--text-grey); font-size: 13px; margin-top: 28px; line-height: 1.6; }
-
+    .hint { color: var(--text-grey); font-size: 13px; margin-top: 30px; line-height: 1.6; max-width: 70ch; }
     footer.site { border-top: 1px solid var(--line); padding: 24px 0; color: var(--text-grey); font-size: 14px; }
   </style>
 </head>
 <body>
   <header class="site">
-    <div class="wrap">
-      <span class="brand"><span class="dot"></span> AIAO</span>
-      <nav><a href="https://www.aiao.dev">← aiao.dev</a></nav>
+    <div class="wrap nav">
+      <a class="brand" href="/"><span class="dot"></span> aiao.dev</a>
+      <nav class="links">
+        <a href="/">Forside</a>
+        <a href="/flow">Sådan bygges en POC</a>
+        <a href="/byg">Hvad kan jeg bygge?</a>
+        <a href="/repos" class="active">POC-oversigt</a>
+      </nav>
     </div>
   </header>
 
   <main>
     <div class="wrap">
-      <h1>POC-katalog</h1>
-      <p class="lead">Live proof-of-concepts på AO's interne platform. Åbn en POC i din browser, eller hent den ned i VS Code og byg videre.</p>
+      <h1>POC-oversigt</h1>
+      <p class="lead">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
       <div id="grid" class="grid"><div class="state">Henter POC'er …</div></div>
-      <p class="hint">
-        <strong>Åbn i VS Code</strong> henter projektet <em>forbundet</em> til GitHub (klar til at udgive). Det kræver,
-        at du har VS Code installeret og er logget ind i GitHub — så ved vi også, at det er dig, der henter dit repo.
-      </p>
+      <p class="hint"><strong>Åbn i VS Code</strong> henter projektet <em>forbundet</em> til GitHub (klar til at udgive). Det kræver, at du har VS Code installeret og er logget ind i GitHub — så ved vi også, at det er dig, der henter dit repo.</p>
     </div>
   </main>
 
-  <footer class="site">
-    <div class="wrap">AO Johansen · intern Claude Code-platform</div>
-  </footer>
+  <footer class="site"><div class="wrap">AO Johansen · intern Claude Code-platform</div></footer>
 
   <script>
     var API = "https://aiao-control-plane-production.up.railway.app";
     var GITHUB_ORG = "AIAODEV";
+    var STAK = ["Next.js", "FastAPI", "Supabase", "Claude Code"];
     var grid = document.getElementById("grid");
 
     function esc(s) {
@@ -148,45 +135,61 @@
         return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
       });
     }
-
+    function handleOf(repo) {
+      if (!repo.ejer_handle) return "";
+      return repo.ejer_handle.charAt(0) === "@" ? repo.ejer_handle : "@" + repo.ejer_handle;
+    }
     function host(repo) {
       if (repo.live_url) { try { return new URL(repo.live_url).host; } catch (e) {} }
       return repo.poc + ".aiao.dev";
     }
-
-    function chip(on, label) {
-      return '<span class="chip' + (on ? " on" : "") + '"><span class="d"></span>' + esc(label) + "</span>";
+    function fmtDate(iso) {
+      if (!iso) return "—";
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return "—";
+      try { return d.toLocaleDateString("da-DK", { day: "numeric", month: "long", year: "numeric" }); } catch (e) { return iso; }
     }
+    function chip(on, label) { return '<span class="chip' + (on ? " on" : "") + '"><span class="d"></span>' + esc(label) + "</span>"; }
+    function field(label, valueHtml, span) { return '<div class="f' + (span ? " span" : "") + '"><div class="f-label">' + esc(label) + '</div><div class="f-val">' + valueHtml + "</div></div>"; }
 
     function card(repo) {
+      var handle = handleOf(repo);
       var title = repo.formaal || repo.display_name || repo.poc;
-      var ownerBits = [repo.ejer_navn, repo.ejer_afdeling, repo.ejer_handle].filter(Boolean).map(esc).join(" · ");
       var vscodeUrl = "vscode://vscode.git/clone?url=https://github.com/" + GITHUB_ORG + "/" + encodeURIComponent(repo.poc) + ".git";
 
       var dots = "";
-      if (repo.is_live) dots += '<span class="chip live"><span class="d"></span>LIVE</span>';
-      dots += chip(repo.has_github, "GitHub");
-      dots += chip(repo.has_vercel, "Vercel");
-      dots += chip(repo.has_railway, "Railway");
-      dots += chip(repo.has_supabase, "Supabase");
+      if (repo.is_live) dots += '<span class="chip live"><span class="d"></span>Live</span>';
+      dots += chip(repo.has_github, "GitHub") + chip(repo.has_vercel, "Vercel") + chip(repo.has_railway, "Railway") + chip(repo.has_supabase, "Supabase");
 
       var actions = "";
-      if (repo.live_url) {
-        actions += '<a class="btn primary" href="' + esc(repo.live_url) + '" target="_blank" rel="noopener noreferrer">↗ Åbn</a>';
-      }
+      if (repo.live_url) actions += '<a class="btn primary" href="' + esc(repo.live_url) + '" target="_blank" rel="noopener noreferrer">↗ Åbn</a>';
       actions += '<a class="btn" href="' + esc(vscodeUrl) + '">↦ Åbn i VS Code</a>';
 
+      var ejerNavn = repo.ejer_navn ? esc(repo.ejer_navn) : "—";
+      var ejerSub = [repo.ejer_afdeling, handle].filter(Boolean).map(esc).join(" · ") || "—";
+      var stakPills = STAK.map(function (s) { return '<span class="pill">' + esc(s) + "</span>"; }).join("");
+      var resume = repo.ai_resume ? '<span>' + esc(repo.ai_resume) + "</span>" : '<span class="ital">Resumé afventer …</span>';
+
+      var details =
+        field("Ejer", '<div>' + ejerNavn + '</div><div class="f-label" style="margin-top:2px;text-transform:none;letter-spacing:0">' + ejerSub + "</div>") +
+        field("Stak", stakPills) +
+        field("Formål", esc(repo.formaal || "—"), true) +
+        field("Oprettet", esc(fmtDate(repo.oprettet))) +
+        field("Resumé (AI)", resume, true);
+
       return (
-        '<section class="card">' +
+        '<section class="card' + (repo.is_live ? "" : " inactive") + '">' +
           '<div class="card-top">' +
-            '<div class="card-title">' +
-              '<p class="name">' + esc(title) + "</p>" +
-              '<div class="sub">' + esc(host(repo)) + "</div>" +
+            '<div class="titleblock">' +
+              '<div class="name">' + esc(title) + (handle ? ' <span class="handle">· ' + esc(handle) + "</span>" : "") + "</div>" +
+              '<div class="sub mono">' + esc(host(repo)) + "</div>" +
             "</div>" +
+            (repo.is_live ? '<span class="badge-live">LIVE</span>' : "") +
+            actions +
+            '<button class="chevron" aria-label="Vis detaljer">▾</button>' +
           "</div>" +
-          (ownerBits ? '<div class="owner">' + ownerBits + "</div>" : "") +
           '<div class="dots">' + dots + "</div>" +
-          '<div class="actions">' + actions + "</div>" +
+          '<div class="details">' + details + "</div>" +
         "</section>"
       );
     }
@@ -199,12 +202,17 @@
       grid.innerHTML = list.map(card).join("");
     }
 
+    // Klik på kortet folder ud/ind — men ikke når man klikker en knap/link.
+    grid.addEventListener("click", function (e) {
+      if (e.target.closest("a")) return;
+      var c = e.target.closest(".card");
+      if (c) c.classList.toggle("open");
+    });
+
     fetch(API + "/public/repos")
       .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
       .then(function (data) { render(data && Array.isArray(data.repos) ? data.repos : data); })
-      .catch(function () {
-        grid.innerHTML = '<div class="state err">Kunne ikke hente listen lige nu. Prøv at genindlæse siden om lidt.</div>';
-      });
+      .catch(function () { grid.innerHTML = '<div class="state err">Kunne ikke hente listen lige nu. Prøv at genindlæse siden om lidt.</div>'; });
   </script>
 </body>
 </html>
