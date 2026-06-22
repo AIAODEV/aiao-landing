@@ -14,10 +14,11 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 `repos.html` på `/repos`, `byg.html` på `/byg`. Intern navigation linker mellem siderne.
 
 > **NB:** `byg.html` ("Hvad kan jeg bygge?") er en HÅND-skrevet standalone-side
-> (ikke en kompileret bundle), så den kan redigeres direkte. Den linker TIL de
-> andre sider, men topmenuen i de kompilerede sider (`index/flow/repos`) linker
-> endnu IKKE til `/byg` — det kræver en ændring i kilde-projektet
-> (`ui_kits/aiao-dev/`) + gen-kompilering.
+> (ikke en kompileret bundle), så den kan redigeres direkte. Topmenuen i de
+> kompilerede sider (`index/flow/repos`) linker nu OGSÅ til `/byg` — tilføjet via
+> bundle-kirurgi (2026-06-22): nav-linket blev indsat i både Topbar-entryens rå
+> JSX og den transpilerede mega-entry, valid/round-trip-verificeret. Fremtidige
+> menu-ændringer skal samme vej (eller via kilden `ui_kits/aiao-dev/` hvis den dukker op).
 
 > React + Babel hentes fra unpkg-CDN ved runtime (kræver internet — fint for et
 > live site). Alt andet er indlejret.
