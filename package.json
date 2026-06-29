@@ -1,0 +1,13 @@
+{
+  "name": "aiao-landing-auth",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "vitest run" },
+  "dependencies": { "jose": "5.9.6" },
+  "devDependencies": {
+    "@vercel/edge": "1.2.1",
+    "typescript": "5.7.3",
+    "vitest": "2.1.8",
+    "@types/node": "22.10.5"
+  }
+}
