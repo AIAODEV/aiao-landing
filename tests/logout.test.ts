@@ -9,5 +9,8 @@ describe("/api/auth/logout", () => {
     const cookie = res.headers.get("set-cookie")!;
     expect(cookie).toContain("aiao_session=");
     expect(cookie).toContain("Max-Age=0");
+    expect(cookie).toContain("HttpOnly");
+    expect(cookie).toContain("Secure");
+    expect(cookie).toContain("SameSite=Lax");
   });
 });

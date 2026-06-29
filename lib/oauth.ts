@@ -67,6 +67,7 @@ export async function validateIdToken(
   const { payload } = await jwtVerify(idToken, jwks, {
     issuer: `https://login.microsoftonline.com/${p.tenantId}/v2.0`,
     audience: p.clientId,
+    requiredClaims: ["sub"],
   });
   if (payload.nonce !== p.nonce) throw new Error("nonce mismatch");
   if (payload.tid !== p.tenantId) throw new Error("forkert tenant (tid)");
