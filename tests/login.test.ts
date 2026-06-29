@@ -15,6 +15,8 @@ describe("/api/auth/login", () => {
     const loc = res.headers.get("location")!;
     expect(loc).toContain("login.microsoftonline.com/TEN/oauth2/v2.0/authorize");
     expect(loc).toContain("client_id=CID");
+    expect(loc).toContain("code_challenge=");
+    expect(loc).toContain("code_challenge_method=S256");
     const cookie = res.headers.get("set-cookie")!;
     expect(cookie).toContain("aiao_oauth_tx=");
     expect(cookie).toContain("HttpOnly");

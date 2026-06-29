@@ -1,15 +1,14 @@
 import { getConfig, REDIRECT_URI, STATE_COOKIE, STATE_TTL_SECONDS } from "../../lib/config";
 import { signJwt } from "../../lib/jwt";
 import { buildAuthorizeUrl, randomToken, sha256Base64Url } from "../../lib/oauth";
-import { serializeCookie } from "../../lib/http";
+import { serializeCookie, safeNextPath } from "../../lib/http";
 
 export const config = { runtime: "edge" };
 
 export default async function handler(req: Request): Promise<Response> {
   const { tenantId, clientId, sessionSecret } = getConfig();
   const url = new URL(req.url);
-  const rawNext = url.searchParams.get("next") ?? "/";
-  const next = rawNext.startsWith("/") ? rawNext : "/"; // open-redirect-guard
+  const next = safeNextPath(url.searchParams.get("next"));
 
   const state = randomToken();
   const nonce = randomToken();

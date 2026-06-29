@@ -24,3 +24,9 @@ export function serializeCookie(
   if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
   return parts.join("; ");
 }
+
+export function safeNextPath(raw: string | null | undefined): string {
+  // Kun lokale stier tillades: skal starte med ét "/", men IKKE "//"
+  // (protokol-relativ URL som //evil.com = open redirect).
+  return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+}
