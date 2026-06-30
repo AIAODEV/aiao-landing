@@ -29,8 +29,13 @@ export default async function handler(req: Request): Promise<Response> {
       tenantId, clientId, clientSecret, code, redirectUri: REDIRECT_URI, codeVerifier: tx.verifier,
     });
     user = await validateIdToken(id_token, { tenantId, clientId, nonce: tx.nonce });
-  } catch {
-    return new Response("Login mislykkedes — kun AO-konti har adgang.", { status: 403 });
+  } catch (err) {
+    // Midlertidig diagnostik: den oprindelige catch var tavs+generisk og skjulte hvilket
+    // trin (token-exchange vs id_token-validering) der fejlede. console.error beholdes
+    // permanent; diagnose-teksten i svaret fjernes igen når rod-årsagen er fundet.
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error("auth callback fejl:", reason);
+    return new Response(`Login mislykkedes (diagnose: ${reason})`, { status: 403 });
   }
 
   const session = await signJwt(sessionSecret, { sub: user.sub, email: user.email }, SESSION_TTL_SECONDS);
