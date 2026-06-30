@@ -131,7 +131,8 @@
     var GITHUB_ORG = "AIAODEV";
     var STAK = ["Next.js", "FastAPI", "Supabase", "Claude Code"];
     var grid = document.getElementById("grid");
-    function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+    function toAscii(s){ return String(s==null?"":s).replace(/\u00c6/g,"Ae").replace(/\u00d8/g,"Oe").replace(/\u00c5/g,"Aa").replace(/\u00e6/g,"ae").replace(/\u00f8/g,"oe").replace(/\u00e5/g,"aa").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+    function esc(s){ return toAscii(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
     function handleOf(r){ if(!r.ejer_handle) return ""; return r.ejer_handle.charAt(0)==="@"?r.ejer_handle:"@"+r.ejer_handle; }
     function host(r){ if(r.live_url){try{return new URL(r.live_url).host;}catch(e){}} return r.poc+".aiao.dev"; }
     function fmtDate(iso){ if(!iso) return "-"; var d=new Date(iso); if(isNaN(d.getTime())) return "-"; try{return d.toLocaleDateString("da-DK",{day:"numeric",month:"long",year:"numeric"});}catch(e){return iso;} }
