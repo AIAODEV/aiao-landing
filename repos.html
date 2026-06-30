@@ -1,9 +1,9 @@
 <!doctype html>
 <!--
   AIAO . POC-oversigt - www.aiao.dev/repos
-  Haandskrevet, vedligeholdelig kilde. Topbar + footer er 1:1 med de oevrige sider
+  Håndskrevet, vedligeholdelig kilde. Topbar + footer er 1:1 med de øvrige sider
   (samme markup/tokens/logo udtrukket fra bundlen). Henter {repos:[...]} fra /public/repos.
-  Primaer handling: "Aabn i VS Code" (forbundet git-klon). Kun offentligt-sikre felter.
+  Primær handling: "Åbn i VS Code" (forbundet git-klon). Kun offentligt-sikre felter.
 -->
 <html lang="da">
 <head>
@@ -103,9 +103,9 @@
   <main>
     <div class="ao-container">
       <h1>POC-oversigt</h1>
-      <p class="lead">Live proof-of-concepts paa AO's interne platform. Aabn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
+      <p class="lead">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
       <div id="grid" class="grid"><div class="state">Henter POC'er ...</div></div>
-      <p class="hint"><strong>Aabn i VS Code</strong> henter projektet <em>forbundet</em> til GitHub (klar til at udgive). Det kraever, at du har VS Code installeret og er logget ind i GitHub - saa ved vi ogsaa, at det er dig, der henter dit repo.</p>
+      <p class="hint"><strong>Åbn i VS Code</strong> henter projektet <em>forbundet</em> til GitHub (klar til at udgive). Det kræver, at du har VS Code installeret og er logget ind i GitHub - så ved vi også, at det er dig, der henter dit repo.</p>
     </div>
   </main>
 
@@ -131,8 +131,7 @@
     var GITHUB_ORG = "AIAODEV";
     var STAK = ["Next.js", "FastAPI", "Supabase", "Claude Code"];
     var grid = document.getElementById("grid");
-    function toAscii(s){ return String(s==null?"":s).replace(/\u00c6/g,"Ae").replace(/\u00d8/g,"Oe").replace(/\u00c5/g,"Aa").replace(/\u00e6/g,"ae").replace(/\u00f8/g,"oe").replace(/\u00e5/g,"aa").normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
-    function esc(s){ return toAscii(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+    function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
     function handleOf(r){ if(!r.ejer_handle) return ""; return r.ejer_handle.charAt(0)==="@"?r.ejer_handle:"@"+r.ejer_handle; }
     function host(r){ if(r.live_url){try{return new URL(r.live_url).host;}catch(e){}} return r.poc+".aiao.dev"; }
     function fmtDate(iso){ if(!iso) return "-"; var d=new Date(iso); if(isNaN(d.getTime())) return "-"; try{return d.toLocaleDateString("da-DK",{day:"numeric",month:"long",year:"numeric"});}catch(e){return iso;} }
@@ -146,18 +145,18 @@
       if(r.is_live) dots+='<span class="chip live"><span class="d"></span>Live</span>';
       dots+=chip(r.has_github,"GitHub")+chip(r.has_vercel,"Vercel")+chip(r.has_railway,"Railway")+chip(r.has_supabase,"Supabase");
       var actions="";
-      if(r.live_url) actions+='<a class="btn primary" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer">Aabn</a>';
-      actions+='<a class="btn" href="'+esc(vscodeUrl)+'">Aabn i VS Code</a>';
+      if(r.live_url) actions+='<a class="btn primary" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer">Åbn</a>';
+      actions+='<a class="btn" href="'+esc(vscodeUrl)+'">Åbn i VS Code</a>';
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" . ")||"-";
       var stakPills=STAK.map(function(s){return '<span class="pill">'+esc(s)+"</span>";}).join("");
-      var resume=r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resume afventer ...</span>';
+      var resume=r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resumé afventer ...</span>';
       var details=
         field("Ejer","<div>"+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
         field("Stak",stakPills)+
-        field("Formaal",esc(r.formaal||"-"),true)+
+        field("Formål",esc(r.formaal||"-"),true)+
         field("Oprettet",esc(fmtDate(r.oprettet)))+
-        field("Resume (AI)",resume,true);
+        field("Resumé (AI)",resume,true);
       return '<section class="card'+(r.is_live?"":" inactive")+'">'+
         '<div class="card-top">'+
           '<div class="titleblock">'+
