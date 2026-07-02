@@ -1,4 +1,4 @@
-import { getConfig, REDIRECT_URI, STATE_COOKIE, STATE_TTL_SECONDS } from "../../lib/config";
+import { getConfig, REDIRECT_URI, STATE_COOKIE, STATE_TTL_SECONDS, STATE_AUD } from "../../lib/config";
 import { signJwt } from "../../lib/jwt";
 import { buildAuthorizeUrl, randomToken, sha256Base64Url } from "../../lib/oauth";
 import { serializeCookie, safeNextPath } from "../../lib/http";
@@ -15,7 +15,7 @@ export default async function handler(req: Request): Promise<Response> {
   const verifier = randomToken(48);
   const codeChallenge = await sha256Base64Url(verifier);
 
-  const tx = await signJwt(sessionSecret, { state, nonce, verifier, next }, STATE_TTL_SECONDS);
+  const tx = await signJwt(sessionSecret, { state, nonce, verifier, next }, STATE_TTL_SECONDS, STATE_AUD);
   const authorizeUrl = buildAuthorizeUrl({ tenantId, clientId, redirectUri: REDIRECT_URI, state, nonce, codeChallenge });
 
   return new Response(null, {

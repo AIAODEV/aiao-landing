@@ -26,7 +26,16 @@ export function serializeCookie(
 }
 
 export function safeNextPath(raw: string | null | undefined): string {
-  // Kun lokale stier tillades: skal starte med ét "/", men IKKE "//"
-  // (protokol-relativ URL som //evil.com = open redirect).
-  return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  // Kun lokale (samme-origin) stier tillades. Et naivt prefix-tjek (`!startsWith("//")`) er
+  // utilstrækkeligt: browsere normaliserer "\" → "/", så "/\evil.com" bliver til "//evil.com"
+  // = protokol-relativ open redirect. Vi opløser derfor mod en dummy-origin og afviser alt der
+  // resolver til en ANDEN origin (fanger "//", "/\", "https://…", "\\…" m.fl. i ét greb).
+  if (!raw || !raw.startsWith("/")) return "/";
+  try {
+    const u = new URL(raw, "https://x.invalid");
+    if (u.origin !== "https://x.invalid") return "/";
+    return u.pathname + u.search;
+  } catch {
+    return "/";
+  }
 }
