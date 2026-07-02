@@ -1,15 +1,15 @@
 <!doctype html>
 <!--
-  AIAO . POC-oversigt - www.aiao.dev/repos
+  AIAO . Start din POC - www.aiao.dev/start
   Håndskrevet, vedligeholdelig kilde. Topbar + footer er 1:1 med de øvrige sider
-  (samme markup/tokens/logo udtrukket fra bundlen). Henter {repos:[...]} fra /public/repos.
-  Primær handling: "Åbn i VS Code" (forbundet git-klon). Kun offentligt-sikre felter.
+  (kopieret fra repos.html). Indlejrer interview-botten (poc37.aiao.dev) i en iframe;
+  allow="microphone" er påkrævet for bottens tale-funktion.
 -->
 <html lang="da">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AIAO . POC-oversigt</title>
+  <title>AIAO . Start din POC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -42,63 +42,14 @@
 
     main { padding: 48px 0 8px; }
     h1 { font-family: var(--font-display); font-size: 34px; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 8px; }
-    .lead { color: var(--muted); margin: 0 0 32px; font-size: 17px; max-width: 62ch; }
+    .lead { color: var(--muted); margin: 0 0 24px; font-size: 17px; max-width: 62ch; }
+    .intro { font-size: 15px; line-height: 1.65; max-width: 72ch; margin: 0 0 28px; }
 
-    .grid { display: grid; gap: 14px; }
-    .card { background: var(--paper); border: 1px solid var(--line); border-left: 3px solid var(--ao-red); border-radius: var(--radius-lg); padding: 18px 20px; }
-    .card.inactive { border-left-color: var(--line); }
-    .card-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; cursor: pointer; }
-    .titleblock { flex: 1 1 220px; min-width: 0; }
-    .titleblock .name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
-    .titleblock .name .handle { color: var(--muted); font-weight: 400; }
-    .titleblock .sub { color: var(--muted); font-size: 12px; margin-top: 3px; font-family: var(--font-mono); letter-spacing: 0.04em; }
-
-    .badge-live { color: var(--live); font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
-    .btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-weight: 500; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 9px 14px; border-radius: var(--radius-md); border: 1px solid var(--ink); background: var(--paper); color: var(--ink); transition: all var(--dur-fast) var(--ease-out); }
-    .btn:hover { background: var(--ink); color: var(--paper); }
-    .btn.primary { background: var(--ao-red); border-color: var(--ao-red); color: #fff; }
-    .btn.primary:hover { background: #b00; border-color: #b00; }
-    .chevron { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 6px; line-height: 1; transition: transform var(--dur-fast) var(--ease-out); }
-    .card.open .chevron { transform: rotate(180deg); }
-
-    .dots { display: flex; gap: 7px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-    .chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 3px 9px; }
-    .chip .d { width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--line); }
-    .chip.on .d { background: var(--ink); }
-    .chip.live { color: var(--live); border-color: var(--live); }
-    .chip.live .d { background: var(--live); }
-
-    .details { display: none; grid-template-columns: 1fr 1fr; gap: 14px 28px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
-    .card.open .details { display: grid; }
-    .f.span { grid-column: 1 / -1; }
-    .f-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 4px; }
-    .f-val { font-size: 14px; }
-    .f-val .ital { color: var(--muted); font-style: italic; }
-    .f-sub { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .pill { display: inline-block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 3px 10px; margin: 0 6px 6px 0; color: var(--muted); }
-
-    .state { text-align: center; color: var(--muted); padding: 56px 0; }
-    .state.err { color: var(--ao-red); }
-    .hint { color: var(--muted); font-size: 13px; margin: 28px 0 56px; line-height: 1.6; max-width: 72ch; }
-
-    .owner { grid-column: 1 / -1; border-top: 1px dashed var(--line); margin-top: 4px; padding-top: 14px; }
-    .owner .btn { margin: 0 8px 8px 0; }
-    .owner .btn:disabled { opacity: 0.55; cursor: default; }
-    .docmsg { font-size: 13px; margin-top: 6px; min-height: 1em; }
-    .docmsg.ok { color: var(--live); }
-    .docmsg.err { color: var(--ao-red); }
-    .docmsg a { text-decoration: underline; color: var(--live); }
-
-    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
-    .modal-bg.show { display: flex; }
-    .modal { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 26px; width: min(380px, 94vw); }
-    .modal h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 19px; font-weight: 900; letter-spacing: -0.02em; }
-    .modal p { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
-    .modal label { display: block; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 12px 0 5px; }
-    .modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 14px; }
-    .modal input:focus { outline: none; border-color: var(--ao-red); }
-    .modal .row { display: flex; gap: 8px; margin-top: 20px; }
-    .modal .m-err { color: var(--ao-red); font-size: 13px; margin-top: 12px; min-height: 1em; }
+    .bot-frame { border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--paper-2); }
+    .bot-frame iframe { display: block; width: 100%; height: max(620px, calc(100vh - 300px)); border: 0; }
+    .fallback { font-family: var(--font-mono); font-size: 13px; color: var(--muted); margin: 14px 0 56px; }
+    .fallback a { color: var(--ink); text-decoration: underline; }
+    .fallback a:hover { color: var(--ao-red); }
   </style>
 </head>
 <body>
@@ -113,8 +64,8 @@
           <a href="index.html" style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding-bottom:4px;border-bottom:2px solid transparent;">Forside</a>
           <a href="flow.html" style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding-bottom:4px;border-bottom:2px solid transparent;">Sådan bygges en POC</a>
           <a href="byg.html" style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding-bottom:4px;border-bottom:2px solid transparent;">Hvad kan jeg bygge?</a>
-          <a href="start.html" style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding-bottom:4px;border-bottom:2px solid transparent;">Start din POC</a>
-          <a href="repos.html" style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink);padding-bottom:4px;border-bottom:2px solid var(--ao-red);">POC-oversigt</a>
+          <a href="start.html" style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink);padding-bottom:4px;border-bottom:2px solid var(--ao-red);">Start din POC</a>
+          <a href="repos.html" style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);padding-bottom:4px;border-bottom:2px solid transparent;">POC-oversigt</a>
         </span>
       </nav>
     </div>
@@ -122,10 +73,13 @@
 
   <main>
     <div class="ao-container">
-      <h1>POC-oversigt</h1>
-      <p class="lead">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
-      <div id="grid" class="grid"><div class="state">Henter POC'er ...</div></div>
-      <p class="hint"><strong>Åbn i VS Code</strong> henter projektet <em>forbundet</em> til GitHub (klar til at udgive). Det kræver, at du har VS Code installeret og er logget ind i GitHub - så ved vi også, at det er dig, der henter dit repo.</p>
+      <h1>Start din POC her</h1>
+      <p class="lead">Tal din idé igennem med botten — på få minutter har du en gennemarbejdet byg-prompt, klar til at bygge med.</p>
+      <p class="intro"><strong>Start her, før du bygger noget.</strong> Et par minutters samtale med botten forvandler en løs idé til en gennemarbejdet byg-prompt — så din POC starter med et klart formål i stedet for et blankt lærred. Og botten er ikke bare et hjælpemiddel: den er <em>selv</em> en POC, bygget på præcis den platform, du er ved at tage i brug. Den er med andre ord et levende bevis på, at en god idé kan blive til noget rigtigt — og den hjælper dig fra idé til stærkt udgangspunkt på ét interview.</p>
+      <div class="bot-frame">
+        <iframe src="https://poc37.aiao.dev" title="Interview-bot — start din POC" allow="microphone" loading="lazy"></iframe>
+      </div>
+      <p class="fallback">Loader botten ikke her? <a href="https://poc37.aiao.dev" target="_blank" rel="noopener">Åbn interviewet i ny fane ↗</a></p>
     </div>
   </main>
 
@@ -145,146 +99,5 @@
       </div>
     </div>
   </footer>
-
-  <div class="modal-bg" id="loginBg">
-    <div class="modal">
-      <h3>Log ind</h3>
-      <p>Log ind med din AIAO-konto (samme som admin.aiao.dev) for at generere dokumenter til din POC. Kun POC'ens ejer eller en admin kan gøre dette.</p>
-      <label for="li-email">Email</label>
-      <input id="li-email" type="email" autocomplete="username" />
-      <label for="li-pw">Password</label>
-      <input id="li-pw" type="password" autocomplete="current-password" />
-      <div class="m-err" id="li-err"></div>
-      <div class="row">
-        <button class="btn primary" id="li-go">Log ind</button>
-        <button class="btn" id="li-cancel">Annullér</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    var API = "https://aiao-control-plane-production.up.railway.app";
-    var GITHUB_ORG = "AIAODEV";
-    var STAK = ["Next.js", "FastAPI", "Supabase", "Claude Code"];
-    var grid = document.getElementById("grid");
-    function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
-    function handleOf(r){ if(!r.ejer_handle) return ""; return r.ejer_handle.charAt(0)==="@"?r.ejer_handle:"@"+r.ejer_handle; }
-    function host(r){ if(r.live_url){try{return new URL(r.live_url).host;}catch(e){}} return r.poc+".aiao.dev"; }
-    function fmtDate(iso){ if(!iso) return "-"; var d=new Date(iso); if(isNaN(d.getTime())) return "-"; try{return d.toLocaleDateString("da-DK",{day:"numeric",month:"long",year:"numeric"});}catch(e){return iso;} }
-    function chip(on,label){ return '<span class="chip'+(on?" on":"")+'"><span class="d"></span>'+esc(label)+"</span>"; }
-    function field(label,val,span){ return '<div class="f'+(span?" span":"")+'"><div class="f-label">'+esc(label)+'</div><div class="f-val">'+val+"</div></div>"; }
-    function card(r){
-      var handle=handleOf(r);
-      var title=r.formaal||r.display_name||r.poc;
-      var vscodeUrl="vscode://vscode.git/clone?url=https://github.com/"+GITHUB_ORG+"/"+encodeURIComponent(r.poc)+".git";
-      var dots="";
-      if(r.is_live) dots+='<span class="chip live"><span class="d"></span>Live</span>';
-      dots+=chip(r.has_github,"GitHub")+chip(r.has_vercel,"Vercel")+chip(r.has_railway,"Railway")+chip(r.has_supabase,"Supabase");
-      var actions="";
-      if(r.live_url) actions+='<a class="btn primary" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer">Åbn</a>';
-      actions+='<a class="btn" href="'+esc(vscodeUrl)+'">Åbn i VS Code</a>';
-      var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
-      var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" . ")||"-";
-      var stakPills=STAK.map(function(s){return '<span class="pill">'+esc(s)+"</span>";}).join("");
-      var resume=r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resumé afventer ...</span>';
-      var pe=encodeURIComponent(r.poc);
-      var owner=
-        '<div class="f owner span">'+
-          '<div class="f-label">Dokumentation (kun ejer/admin)</div>'+
-          '<button class="btn" data-act="brugerguide" data-poc="'+esc(r.poc)+'">Lav brugerguide</button>'+
-          '<button class="btn" data-act="loesningsbeskrivelse" data-poc="'+esc(r.poc)+'">Lav løsningsbeskrivelse</button>'+
-          '<div class="docmsg" id="docmsg-'+pe+'"></div>'+
-        "</div>";
-      var details=
-        field("Ejer","<div>"+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
-        field("Stak",stakPills)+
-        field("Formål",esc(r.formaal||"-"),true)+
-        field("Oprettet",esc(fmtDate(r.oprettet)))+
-        field("Resumé (AI)",resume,true)+
-        owner;
-      return '<section class="card'+(r.is_live?"":" inactive")+'">'+
-        '<div class="card-top">'+
-          '<div class="titleblock">'+
-            '<div class="name">'+esc(title)+(handle?' <span class="handle">. '+esc(handle)+"</span>":"")+"</div>"+
-            '<div class="sub">'+esc(host(r))+"</div>"+
-          "</div>"+
-          (r.is_live?'<span class="badge-live">Live</span>':"")+
-          actions+
-          '<button class="chevron" aria-label="Vis detaljer">v</button>'+
-        "</div>"+
-        '<div class="dots">'+dots+"</div>"+
-        '<div class="details">'+details+"</div>"+
-      "</section>";
-    }
-    function render(list){
-      if(!Array.isArray(list)||list.length===0){ grid.innerHTML='<div class="state">Ingen aktive POC\'er endnu.</div>'; return; }
-      grid.innerHTML=list.map(card).join("");
-    }
-    grid.addEventListener("click",function(e){
-      var act=e.target.closest("[data-act]");
-      if(act){ e.stopPropagation(); requestDoc(act.getAttribute("data-poc"), act.getAttribute("data-act"), act); return; }
-      if(e.target.closest("a")) return;
-      var c=e.target.closest(".card"); if(c) c.classList.toggle("open");
-    });
-    fetch(API+"/public/repos")
-      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
-      .then(function(d){ render(d&&Array.isArray(d.repos)?d.repos:d); })
-      .catch(function(){ grid.innerHTML='<div class="state err">Kunne ikke hente listen lige nu. Proev at genindlaese siden om lidt.</div>'; });
-
-    // ── Ejer-handlinger: generér docs/brugerguide.md + docs/loesningsbeskrivelse.md ──────────
-    // Kræver en control-plane Supabase-session (samme konto som admin.aiao.dev). Token holdes KUN
-    // i hukommelsen; serveren håndhæver ejer/admin (ikke-ejere får 403). Nøgler er offentlige (anon).
-    var session=null, authCfg=null, pending=null;
-    var loginBg=document.getElementById("loginBg");
-    var liEmail=document.getElementById("li-email"), liPw=document.getElementById("li-pw"), liErr=document.getElementById("li-err");
-    var LABEL={brugerguide:"brugerguide", loesningsbeskrivelse:"løsningsbeskrivelse"};
-
-    function docMsg(poc,cls,html){ var el=document.getElementById("docmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
-    function getAuthCfg(){
-      if(authCfg) return Promise.resolve(authCfg);
-      return fetch(API+"/public/auth-config").then(function(r){ if(!r.ok) throw new Error("config"); return r.json(); }).then(function(c){ authCfg=c; return c; });
-    }
-    function openLogin(){ liErr.textContent=""; loginBg.classList.add("show"); liEmail.focus(); }
-    function closeLogin(){ loginBg.classList.remove("show"); }
-
-    function requestDoc(poc,kind,btn){
-      if(session) return runDoc(poc,kind,btn);
-      pending={poc:poc,kind:kind};
-      openLogin();
-    }
-    function runDoc(poc,kind,btn){
-      if(btn) btn.disabled=true;
-      docMsg(poc,"","Genererer "+(LABEL[kind]||"dokument")+" …");
-      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+kind,{ method:"POST", headers:{ Authorization:"Bearer "+session } })
-        .then(function(r){
-          if(r.status===401){ session=null; pending={poc:poc,kind:kind}; docMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
-          if(r.status===403){ docMsg(poc,"err","Kun POC'ens ejer eller en admin kan dette."); return null; }
-          if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
-          return r.json();
-        })
-        .then(function(d){ if(d&&d.ok){ docMsg(poc,"ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <a href=\""+esc(d.html_url)+"\" target=\"_blank\" rel=\"noopener noreferrer\">Åbn ↗</a>"); } })
-        .catch(function(e){ docMsg(poc,"err",esc(e&&e.message?e.message:"Ukendt fejl")); })
-        .finally(function(){ if(btn) btn.disabled=false; });
-    }
-
-    function doLogin(){
-      var email=liEmail.value.trim(), pw=liPw.value;
-      if(!email||!pw){ liErr.textContent="Udfyld email og password."; return; }
-      liErr.textContent="Logger ind …";
-      getAuthCfg().then(function(c){
-        if(!c.anon_key||!c.supabase_url){ liErr.textContent="Login er ikke konfigureret endnu — kontakt en admin."; return Promise.reject(new Error("no-config")); }
-        return fetch(c.supabase_url+"/auth/v1/token?grant_type=password",{
-          method:"POST", headers:{ "Content-Type":"application/json", apikey:c.anon_key },
-          body:JSON.stringify({ email:email, password:pw })
-        });
-      }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
-        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; runDoc(p.poc,p.kind); } })
-        .catch(function(e){ if(e&&e.message&&e.message!=="no-config") liErr.textContent=e.message; });
-    }
-    document.getElementById("li-go").addEventListener("click",doLogin);
-    document.getElementById("li-cancel").addEventListener("click",function(){ pending=null; closeLogin(); });
-    liPw.addEventListener("keydown",function(e){ if(e.key==="Enter") doLogin(); });
-    loginBg.addEventListener("click",function(e){ if(e.target===loginBg){ pending=null; closeLogin(); } });
-  </script>
 </body>
 </html>
