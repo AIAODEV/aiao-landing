@@ -1,5 +1,5 @@
 import { next } from "@vercel/edge";
-import { getConfig, SESSION_COOKIE } from "./lib/config";
+import { getConfig, SESSION_COOKIE, SESSION_AUD } from "./lib/config";
 import { verifyJwt } from "./lib/jwt";
 import { parseCookies } from "./lib/http";
 import { gateDecision } from "./lib/gate";
@@ -13,7 +13,9 @@ export default async function middleware(req: Request): Promise<Response> {
   const { sessionSecret } = getConfig();
 
   const token = parseCookies(req.headers.get("cookie"))[SESSION_COOKIE];
-  const sessionValid = token ? (await verifyJwt(sessionSecret, token)) !== null : false;
+  // Kræv session-audience: et gyldigt-signeret oauth-tx-token (som login udleverer uden auth)
+  // må IKKE godkendes som session (ellers fuld gate-bypass).
+  const sessionValid = token ? (await verifyJwt(sessionSecret, token, { audience: SESSION_AUD })) !== null : false;
 
   const decision = gateDecision({
     hostname: url.hostname,

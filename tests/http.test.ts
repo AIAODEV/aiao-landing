@@ -29,6 +29,13 @@ describe("safeNextPath", () => {
   it("blokerer absolut URL (https://evil.com)", () => {
     expect(safeNextPath("https://evil.com")).toBe("/");
   });
+  it("blokerer backslash-bypass (/\\evil.com → browser normaliserer \\→/)", () => {
+    expect(safeNextPath("/\\evil.com")).toBe("/");
+    expect(safeNextPath("/\\/evil.com")).toBe("/");
+  });
+  it("bevarer sti + query", () => {
+    expect(safeNextPath("/byg?x=1")).toBe("/byg?x=1");
+  });
   it("håndterer null", () => {
     expect(safeNextPath(null)).toBe("/");
   });
