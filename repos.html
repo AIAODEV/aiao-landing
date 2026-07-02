@@ -80,6 +80,25 @@
     .state { text-align: center; color: var(--muted); padding: 56px 0; }
     .state.err { color: var(--ao-red); }
     .hint { color: var(--muted); font-size: 13px; margin: 28px 0 56px; line-height: 1.6; max-width: 72ch; }
+
+    .owner { grid-column: 1 / -1; border-top: 1px dashed var(--line); margin-top: 4px; padding-top: 14px; }
+    .owner .btn { margin: 0 8px 8px 0; }
+    .owner .btn:disabled { opacity: 0.55; cursor: default; }
+    .docmsg { font-size: 13px; margin-top: 6px; min-height: 1em; }
+    .docmsg.ok { color: var(--live); }
+    .docmsg.err { color: var(--ao-red); }
+    .docmsg a { text-decoration: underline; color: var(--live); }
+
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+    .modal-bg.show { display: flex; }
+    .modal { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 26px; width: min(380px, 94vw); }
+    .modal h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 19px; font-weight: 900; letter-spacing: -0.02em; }
+    .modal p { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .modal label { display: block; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 12px 0 5px; }
+    .modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 14px; }
+    .modal input:focus { outline: none; border-color: var(--ao-red); }
+    .modal .row { display: flex; gap: 8px; margin-top: 20px; }
+    .modal .m-err { color: var(--ao-red); font-size: 13px; margin-top: 12px; min-height: 1em; }
   </style>
 </head>
 <body>
@@ -126,6 +145,22 @@
     </div>
   </footer>
 
+  <div class="modal-bg" id="loginBg">
+    <div class="modal">
+      <h3>Log ind</h3>
+      <p>Log ind med din AIAO-konto (samme som admin.aiao.dev) for at generere dokumenter til din POC. Kun POC'ens ejer eller en admin kan gøre dette.</p>
+      <label for="li-email">Email</label>
+      <input id="li-email" type="email" autocomplete="username" />
+      <label for="li-pw">Password</label>
+      <input id="li-pw" type="password" autocomplete="current-password" />
+      <div class="m-err" id="li-err"></div>
+      <div class="row">
+        <button class="btn primary" id="li-go">Log ind</button>
+        <button class="btn" id="li-cancel">Annullér</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     var API = "https://aiao-control-plane-production.up.railway.app";
     var GITHUB_ORG = "AIAODEV";
@@ -151,12 +186,21 @@
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" . ")||"-";
       var stakPills=STAK.map(function(s){return '<span class="pill">'+esc(s)+"</span>";}).join("");
       var resume=r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resumé afventer ...</span>';
+      var pe=encodeURIComponent(r.poc);
+      var owner=
+        '<div class="f owner span">'+
+          '<div class="f-label">Dokumentation (kun ejer/admin)</div>'+
+          '<button class="btn" data-act="brugerguide" data-poc="'+esc(r.poc)+'">Lav brugerguide</button>'+
+          '<button class="btn" data-act="loesningsbeskrivelse" data-poc="'+esc(r.poc)+'">Lav løsningsbeskrivelse</button>'+
+          '<div class="docmsg" id="docmsg-'+pe+'"></div>'+
+        "</div>";
       var details=
         field("Ejer","<div>"+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
         field("Stak",stakPills)+
         field("Formål",esc(r.formaal||"-"),true)+
         field("Oprettet",esc(fmtDate(r.oprettet)))+
-        field("Resumé (AI)",resume,true);
+        field("Resumé (AI)",resume,true)+
+        owner;
       return '<section class="card'+(r.is_live?"":" inactive")+'">'+
         '<div class="card-top">'+
           '<div class="titleblock">'+
@@ -175,11 +219,71 @@
       if(!Array.isArray(list)||list.length===0){ grid.innerHTML='<div class="state">Ingen aktive POC\'er endnu.</div>'; return; }
       grid.innerHTML=list.map(card).join("");
     }
-    grid.addEventListener("click",function(e){ if(e.target.closest("a")) return; var c=e.target.closest(".card"); if(c) c.classList.toggle("open"); });
+    grid.addEventListener("click",function(e){
+      var act=e.target.closest("[data-act]");
+      if(act){ e.stopPropagation(); requestDoc(act.getAttribute("data-poc"), act.getAttribute("data-act"), act); return; }
+      if(e.target.closest("a")) return;
+      var c=e.target.closest(".card"); if(c) c.classList.toggle("open");
+    });
     fetch(API+"/public/repos")
       .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
       .then(function(d){ render(d&&Array.isArray(d.repos)?d.repos:d); })
       .catch(function(){ grid.innerHTML='<div class="state err">Kunne ikke hente listen lige nu. Proev at genindlaese siden om lidt.</div>'; });
+
+    // ── Ejer-handlinger: generér docs/brugerguide.md + docs/loesningsbeskrivelse.md ──────────
+    // Kræver en control-plane Supabase-session (samme konto som admin.aiao.dev). Token holdes KUN
+    // i hukommelsen; serveren håndhæver ejer/admin (ikke-ejere får 403). Nøgler er offentlige (anon).
+    var session=null, authCfg=null, pending=null;
+    var loginBg=document.getElementById("loginBg");
+    var liEmail=document.getElementById("li-email"), liPw=document.getElementById("li-pw"), liErr=document.getElementById("li-err");
+    var LABEL={brugerguide:"brugerguide", loesningsbeskrivelse:"løsningsbeskrivelse"};
+
+    function docMsg(poc,cls,html){ var el=document.getElementById("docmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
+    function getAuthCfg(){
+      if(authCfg) return Promise.resolve(authCfg);
+      return fetch(API+"/public/auth-config").then(function(r){ if(!r.ok) throw new Error("config"); return r.json(); }).then(function(c){ authCfg=c; return c; });
+    }
+    function openLogin(){ liErr.textContent=""; loginBg.classList.add("show"); liEmail.focus(); }
+    function closeLogin(){ loginBg.classList.remove("show"); }
+
+    function requestDoc(poc,kind,btn){
+      if(session) return runDoc(poc,kind,btn);
+      pending={poc:poc,kind:kind};
+      openLogin();
+    }
+    function runDoc(poc,kind,btn){
+      if(btn) btn.disabled=true;
+      docMsg(poc,"","Genererer "+(LABEL[kind]||"dokument")+" …");
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+kind,{ method:"POST", headers:{ Authorization:"Bearer "+session } })
+        .then(function(r){
+          if(r.status===401){ session=null; pending={poc:poc,kind:kind}; docMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
+          if(r.status===403){ docMsg(poc,"err","Kun POC'ens ejer eller en admin kan dette."); return null; }
+          if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
+          return r.json();
+        })
+        .then(function(d){ if(d&&d.ok){ docMsg(poc,"ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <a href=\""+esc(d.html_url)+"\" target=\"_blank\" rel=\"noopener noreferrer\">Åbn ↗</a>"); } })
+        .catch(function(e){ docMsg(poc,"err",esc(e&&e.message?e.message:"Ukendt fejl")); })
+        .finally(function(){ if(btn) btn.disabled=false; });
+    }
+
+    function doLogin(){
+      var email=liEmail.value.trim(), pw=liPw.value;
+      if(!email||!pw){ liErr.textContent="Udfyld email og password."; return; }
+      liErr.textContent="Logger ind …";
+      getAuthCfg().then(function(c){
+        if(!c.anon_key||!c.supabase_url){ liErr.textContent="Login er ikke konfigureret endnu — kontakt en admin."; return Promise.reject(new Error("no-config")); }
+        return fetch(c.supabase_url+"/auth/v1/token?grant_type=password",{
+          method:"POST", headers:{ "Content-Type":"application/json", apikey:c.anon_key },
+          body:JSON.stringify({ email:email, password:pw })
+        });
+      }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
+        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; runDoc(p.poc,p.kind); } })
+        .catch(function(e){ if(e&&e.message&&e.message!=="no-config") liErr.textContent=e.message; });
+    }
+    document.getElementById("li-go").addEventListener("click",doLogin);
+    document.getElementById("li-cancel").addEventListener("click",function(){ pending=null; closeLogin(); });
+    liPw.addEventListener("keydown",function(e){ if(e.key==="Enter") doLogin(); });
+    loginBg.addEventListener("click",function(e){ if(e.target===loginBg){ pending=null; closeLogin(); } });
   </script>
 </body>
 </html>
