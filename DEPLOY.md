@@ -9,6 +9,7 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 | `flow.html` | `/flow` |
 | `repos.html` | `/repos` |
 | `byg.html` | `/byg` |
+| `start.html` | `/start` |
 | `ledelse.html` | `/ledelse` |
 | `arkitektur.html` | `/arkitektur` |
 
@@ -19,12 +20,21 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 
 > **NB:** `/arkitektur` ("Arkitektur — fra bruger til POC i produktion") er ligeledes bevidst **ikke** i topmenuen — et delbart, teknisk link (vugge-til-grav-gennemgang). Lavet som klon af `ledelse.html`: kun manifest-entry `9804da45` (side-JSX) byttet + synlig `<title>` opdateret. Funktionsnavnet beholdt som `LedelsePage`, så template'ens `App()` virker uændret; ingen menu-/Topbar-ændring. Round-trip + Babel-valideret; de 16 øvrige bundle-entries er byte-identiske med `ledelse.html`.
 
-> **NB:** `byg.html` ("Hvad kan jeg bygge?") er en HÅND-skrevet standalone-side
-> (ikke en kompileret bundle), så den kan redigeres direkte. Topmenuen i de
-> kompilerede sider (`index/flow/repos`) linker nu OGSÅ til `/byg` — tilføjet via
-> bundle-kirurgi (2026-06-22): nav-linket blev indsat i både Topbar-entryens rå
-> JSX og den transpilerede mega-entry, valid/round-trip-verificeret. Fremtidige
-> menu-ændringer skal samme vej (eller via kilden `ui_kits/aiao-dev/` hvis den dukker op).
+> **NB (status pr. 2026-07-02):** `repos.html` er i dag den eneste HÅND-skrevne
+> standalone-side (vedligeholdelig kilde — kan redigeres direkte); `byg.html` er
+> siden blevet en kompileret bundle som `index/flow`. Menu-ændringer i de
+> kompilerede sider sker via bundle-kirurgi: nav-linket indsættes i BÅDE
+> Topbar-entryens rå JSX og den transpilerede mega-entry (begge sætter
+> `window.Topbar`), syntaks-valideres (esbuild/`node --check`), re-encodes
+> (gzip+base64) og round-trip-verificeres. Præcedens: `/byg`-linket (2026-06-22)
+> og `/start`-linket (2026-07-02, i `index/flow/byg`). Fremtidige menu-ændringer
+> skal samme vej (eller via kilden `ui_kits/aiao-dev/` hvis den dukker op).
+
+> **NB:** `start.html` ("Start din POC her") er hånd-skrevet som `repos.html`
+> (topbar/footer klonet derfra) og indlejrer interview-botten `poc37.aiao.dev`
+> i en iframe med `allow="microphone"` (påkrævet for tale). Fallback-link
+> "Åbn interviewet i ny fane" vises altid under iframen. Forudsætter at poc37
+> tillader framing fra `www.aiao.dev` (styres i poc37, ikke her).
 
 > React + Babel hentes fra unpkg-CDN ved runtime (kræver internet — fint for et
 > live site). Alt andet er indlejret.
