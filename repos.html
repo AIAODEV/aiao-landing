@@ -29,6 +29,11 @@
       --radius-lg: 16px;
       --radius-md: 8px;
       --dur-fast: 120ms;
+      --dur-base: 220ms;
+      --dur-slow: 420ms;
+      --shadow-sm: 0 1px 2px rgba(10, 10, 10, 0.06);
+      --shadow-md: 0 4px 16px rgba(10, 10, 10, 0.08);
+      --shadow-lg: 0 16px 48px rgba(10, 10, 10, 0.18);
       --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
       --maxw: 1080px;
       --gutter: 24px;
@@ -117,6 +122,85 @@
     .doc-body a { color: var(--live); text-decoration: underline; }
     .docbtns .btn { margin: 0 6px 8px 0; }
     .docbtns .f-sub { display: inline; margin-right: 14px; }
+
+    /* ── POLISH: elevation, transitions & animationer — design og tekst uændret.
+       Token-værdier (--dur-base, --shadow-*) matcher de bundlede sider. ── */
+
+    /* Topbar/footer (inline-stylet markup → farve-hover kræver !important) */
+    header { box-shadow: var(--shadow-sm); }
+    header .ao-container > a[href="index.html"] { transition: opacity var(--dur-fast) var(--ease-out); }
+    header .ao-container > a[href="index.html"]:hover { opacity: 0.8; }
+    .ao-topbar-links a { transition: color var(--dur-fast) var(--ease-out), border-bottom-color var(--dur-fast) var(--ease-out); }
+    .ao-topbar-links a:hover { color: var(--ink) !important; }
+    .ao-topbar-links a:not([href="repos.html"]):hover { border-bottom-color: var(--line) !important; }
+    footer .ao-container > div:last-child > span { transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+    footer .ao-container > div:last-child > span:hover { color: var(--ink) !important; border-color: var(--muted) !important; }
+
+    /* Side-entrance */
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    main .ao-container > * { animation: rise var(--dur-slow) var(--ease-out) backwards; }
+    main .ao-container > *:nth-child(2) { animation-delay: 50ms; }
+    main .ao-container > *:nth-child(3) { animation-delay: 100ms; }
+    main .ao-container > *:nth-child(4) { animation-delay: 150ms; }
+    main .ao-container > *:nth-child(5) { animation-delay: 200ms; }
+
+    /* Kort: elevation + hover-løft */
+    .card { box-shadow: var(--shadow-sm); transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+    .card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+    .card.open { box-shadow: var(--shadow-md); }
+    .btn:active { transform: translateY(1px); }
+
+    /* Staggered kort-indflyvning (cappet ved 8. kort, så lange lister ikke venter) */
+    @keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .grid > .card { animation: card-in var(--dur-slow) var(--ease-out) backwards; }
+    .grid > .card:nth-child(2) { animation-delay: 60ms; }
+    .grid > .card:nth-child(3) { animation-delay: 120ms; }
+    .grid > .card:nth-child(4) { animation-delay: 180ms; }
+    .grid > .card:nth-child(5) { animation-delay: 240ms; }
+    .grid > .card:nth-child(6) { animation-delay: 300ms; }
+    .grid > .card:nth-child(7) { animation-delay: 360ms; }
+    .grid > .card:nth-child(8) { animation-delay: 420ms; }
+    .grid > .card:nth-child(n+9) { animation-delay: 460ms; }
+
+    /* Accordion: glidende åbning (display-togglet i JS starter animationen forfra) */
+    .card.open .details { overflow: hidden; animation: details-in var(--dur-slow) var(--ease-out); }
+    @keyframes details-in {
+      from { opacity: 0; max-height: 0; margin-top: 0; padding-top: 0; }
+      to { opacity: 1; max-height: 720px; margin-top: 18px; padding-top: 16px; }
+    }
+
+    /* Modaler: fade + scale-entrance */
+    .modal { box-shadow: var(--shadow-lg); }
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(0.97); } }
+    .modal-bg.show { animation: fade-in var(--dur-base) var(--ease-out); }
+    .modal-bg.show .modal { animation: modal-in var(--dur-base) var(--ease-out); }
+
+    /* Live-puls (rgba = --live #4c7f14) */
+    @keyframes live-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(76, 127, 20, 0.35); }
+      70% { box-shadow: 0 0 0 6px rgba(76, 127, 20, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(76, 127, 20, 0); }
+    }
+    .chip.live .d { animation: live-pulse 2.4s var(--ease-out) infinite; }
+    .badge-live::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--live); margin-right: 6px; vertical-align: 1px; animation: live-pulse 2.4s var(--ease-out) infinite; }
+
+    /* Loading-state */
+    @keyframes pulse-soft { 50% { opacity: 0.45; } }
+    .state { animation: pulse-soft 1.6s ease-in-out infinite; }
+    .state.err { animation: none; }
+
+    /* Småting: input-focus-ring + blødere chevron */
+    .modal input { transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+    .modal input:focus { box-shadow: 0 0 0 3px rgba(230, 0, 3, 0.10); }
+    .chevron { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border-radius: var(--radius-pill); transition: transform var(--dur-base) var(--ease-out), color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out); }
+    .chevron:hover { color: var(--ink); background-color: var(--paper-2); }
+    .card.open .chevron { color: var(--ink); }
+    .chevron svg { display: block; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
   </style>
 </head>
 <body>
@@ -246,7 +330,7 @@
           "</div>"+
           (r.is_live?'<span class="badge-live">Live</span>':"")+
           actions+
-          '<button class="chevron" aria-label="Vis detaljer">v</button>'+
+          '<button class="chevron" aria-label="Vis detaljer"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.25 6 7.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
         "</div>"+
         '<div class="dots">'+dots+"</div>"+
         '<div class="details">'+details+"</div>"+
