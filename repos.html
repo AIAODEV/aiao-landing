@@ -178,7 +178,7 @@
   <div class="modal-bg" id="loginBg">
     <div class="modal">
       <h3>Log ind</h3>
-      <p>Log ind med din AIAO-konto (samme som admin.aiao.dev) for at se eller generere dokumenter. Alle med en konto kan læse; kun POC'ens ejer eller en admin kan generere.</p>
+      <p>Log ind med din AIAO-konto (samme som admin.aiao.dev) for at generere dokumenter til din POC. Kun POC'ens ejer eller en admin kan gøre dette.</p>
       <label for="li-email">Email</label>
       <input id="li-email" type="email" autocomplete="username" />
       <label for="li-pw">Password</label>
@@ -310,25 +310,20 @@
         .finally(function(){ if(btn) btn.disabled=false; });
     }
 
-    // ── Doc-viewer: vis et genereret dokument (alle med en AIAO-konto; hentes frisk fra repoet) ──
+    // ── Doc-viewer: vis et genereret dokument — LOGIN-FRIT (sitet er allerede Entra-gated;
+    // kun generering kræver AIAO-login). Hentes frisk fra repoet via /public/docs. ──
     var docBg=document.getElementById("docBg");
     var docTitle=document.getElementById("doc-title"), docMeta=document.getElementById("doc-meta"), docBody=document.getElementById("doc-body");
     var DOC_TITLE={brugerguide:"Brugerguide", loesningsbeskrivelse:"Løsningsbeskrivelse"};
 
-    function requestView(poc,kind){
-      if(session) return runView(poc,kind);
-      pending={poc:poc,kind:kind,view:true};
-      openLogin();
-    }
+    function requestView(poc,kind){ runView(poc,kind); }
     function runView(poc,kind){
       docTitle.textContent=(DOC_TITLE[kind]||"Dokument")+" · "+poc;
       docMeta.textContent="";
       docBody.textContent="Henter dokumentet fra repoet …";
       docBg.classList.add("show");
-      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+encodeURIComponent(kind),{ headers:{ Authorization:"Bearer "+session } })
+      fetch(API+"/public/docs/"+encodeURIComponent(poc)+"/"+encodeURIComponent(kind))
         .then(function(r){
-          if(r.status===401){ session=null; pending={poc:poc,kind:kind,view:true}; docBg.classList.remove("show"); openLogin(); return null; }
-          if(r.status===403){ docBody.textContent="Din konto har ingen rolle på platformen endnu — kontakt en admin."; return null; }
           if(r.status===404){ docBody.textContent="Dokumentet er ikke genereret endnu."; return null; }
           if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
           return r.json();
@@ -421,7 +416,7 @@
           body:JSON.stringify({ email:email, password:pw })
         });
       }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
-        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; if(p.view){ runView(p.poc,p.kind); } else { runDoc(p.poc,p.kind); } } })
+        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; runDoc(p.poc,p.kind); } })
         .catch(function(e){ if(e&&e.message&&e.message!=="no-config") liErr.textContent=e.message; });
     }
     document.getElementById("li-go").addEventListener("click",doLogin);
