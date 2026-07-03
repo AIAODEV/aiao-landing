@@ -99,6 +99,24 @@
     .modal input:focus { outline: none; border-color: var(--ao-red); }
     .modal .row { display: flex; gap: 8px; margin-top: 20px; }
     .modal .m-err { color: var(--ao-red); font-size: 13px; margin-top: 12px; min-height: 1em; }
+
+    /* Doc-viewer: modal der viser en genereret brugerguide/løsningsbeskrivelse (markdown → DOM) */
+    .modal--doc { width: min(760px, 94vw); padding: 0; display: flex; flex-direction: column; max-height: 86vh; }
+    .doc-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--line); }
+    .doc-head h3 { margin: 0; font-family: var(--font-display); font-size: 17px; font-weight: 900; letter-spacing: -0.02em; }
+    .doc-head .meta { color: var(--muted); font-family: var(--font-mono); font-size: 11px; flex: 1; }
+    .doc-body { overflow-y: auto; padding: 18px 24px 26px; font-size: 14px; line-height: 1.6; }
+    .doc-body h2 { font-size: 20px; margin: 18px 0 6px; }
+    .doc-body h3 { font-size: 16px; margin: 14px 0 5px; }
+    .doc-body h4 { font-size: 14px; margin: 12px 0 4px; }
+    .doc-body p { margin: 0 0 10px; }
+    .doc-body ul, .doc-body ol { margin: 0 0 10px; padding-left: 1.4em; }
+    .doc-body pre { background: var(--paper-2); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 12px; overflow-x: auto; font-size: 12px; }
+    .doc-body code { font-family: var(--font-mono); font-size: 0.92em; }
+    .doc-body blockquote { border-left: 3px solid var(--line); margin: 0 0 10px; padding: 0 0 0 12px; color: var(--muted); }
+    .doc-body a { color: var(--live); text-decoration: underline; }
+    .docbtns .btn { margin: 0 6px 8px 0; }
+    .docbtns .f-sub { display: inline; margin-right: 14px; }
   </style>
 </head>
 <body>
@@ -146,10 +164,21 @@
     </div>
   </footer>
 
+  <div class="modal-bg" id="docBg">
+    <div class="modal modal--doc">
+      <div class="doc-head">
+        <h3 id="doc-title">Dokument</h3>
+        <span class="meta" id="doc-meta"></span>
+        <button class="btn" id="doc-close">Luk</button>
+      </div>
+      <div class="doc-body" id="doc-body"></div>
+    </div>
+  </div>
+
   <div class="modal-bg" id="loginBg">
     <div class="modal">
       <h3>Log ind</h3>
-      <p>Log ind med din AIAO-konto (samme som admin.aiao.dev) for at generere dokumenter til din POC. Kun POC'ens ejer eller en admin kan gøre dette.</p>
+      <p>Log ind med din AIAO-konto (samme som admin.aiao.dev) for at se eller generere dokumenter. Alle med en konto kan læse; kun POC'ens ejer eller en admin kan generere.</p>
       <label for="li-email">Email</label>
       <input id="li-email" type="email" autocomplete="username" />
       <label for="li-pw">Password</label>
@@ -188,11 +217,17 @@
       var stakPills=STAK.map(function(s){return '<span class="pill">'+esc(s)+"</span>";}).join("");
       var resume=r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resumé afventer ...</span>';
       var pe=encodeURIComponent(r.poc);
+      // Varige "Åbn"-knapper (alle med en AIAO-konto kan læse) — vises når dokumentet findes
+      // (tidsstempel fra /public/repos); indholdet hentes frisk fra repoet ved klik.
+      var docBtns="";
+      if(r.brugerguide_opdateret) docBtns+='<button class="btn" data-view="brugerguide" data-poc="'+esc(r.poc)+'">Åbn brugerguide</button><span class="f-sub">senest '+esc(fmtDate(r.brugerguide_opdateret))+"</span>";
+      if(r.loesningsbeskrivelse_opdateret) docBtns+='<button class="btn" data-view="loesningsbeskrivelse" data-poc="'+esc(r.poc)+'">Åbn løsningsbeskrivelse</button><span class="f-sub">senest '+esc(fmtDate(r.loesningsbeskrivelse_opdateret))+"</span>";
+      var docsField=docBtns?field("Dokumenter",'<div class="docbtns">'+docBtns+"</div>",true):"";
       var owner=
         '<div class="f owner span">'+
           '<div class="f-label">Dokumentation (kun ejer/admin)</div>'+
-          '<button class="btn" data-act="brugerguide" data-poc="'+esc(r.poc)+'">Lav brugerguide</button>'+
-          '<button class="btn" data-act="loesningsbeskrivelse" data-poc="'+esc(r.poc)+'">Lav løsningsbeskrivelse</button>'+
+          '<button class="btn" data-act="brugerguide" data-poc="'+esc(r.poc)+'">'+(r.brugerguide_opdateret?"Gengenerér brugerguide":"Lav brugerguide")+'</button>'+
+          '<button class="btn" data-act="loesningsbeskrivelse" data-poc="'+esc(r.poc)+'">'+(r.loesningsbeskrivelse_opdateret?"Gengenerér løsningsbeskrivelse":"Lav løsningsbeskrivelse")+'</button>'+
           '<div class="docmsg" id="docmsg-'+pe+'"></div>'+
         "</div>";
       var details=
@@ -201,6 +236,7 @@
         field("Formål",esc(r.formaal||"-"),true)+
         field("Oprettet",esc(fmtDate(r.oprettet)))+
         field("Resumé (AI)",resume,true)+
+        docsField+
         owner;
       return '<section class="card'+(r.is_live?"":" inactive")+'">'+
         '<div class="card-top">'+
@@ -221,6 +257,8 @@
       grid.innerHTML=list.map(card).join("");
     }
     grid.addEventListener("click",function(e){
+      var view=e.target.closest("[data-view]");
+      if(view){ e.stopPropagation(); requestView(view.getAttribute("data-poc"), view.getAttribute("data-view")); return; }
       var act=e.target.closest("[data-act]");
       if(act){ e.stopPropagation(); requestDoc(act.getAttribute("data-poc"), act.getAttribute("data-act"), act); return; }
       if(e.target.closest("a")) return;
@@ -262,9 +300,114 @@
           if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
           return r.json();
         })
-        .then(function(d){ if(d&&d.ok){ docMsg(poc,"ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <a href=\""+esc(d.html_url)+"\" target=\"_blank\" rel=\"noopener noreferrer\">Åbn ↗</a>"); } })
+        .then(function(d){
+          if(d&&d.ok){
+            docMsg(poc,"ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <button class=\"btn\" data-view=\""+esc(kind)+"\" data-poc=\""+esc(poc)+"\">Åbn</button>");
+            if(btn) btn.textContent="Gengenerér "+(LABEL[kind]||"dokument");
+          }
+        })
         .catch(function(e){ docMsg(poc,"err",esc(e&&e.message?e.message:"Ukendt fejl")); })
         .finally(function(){ if(btn) btn.disabled=false; });
+    }
+
+    // ── Doc-viewer: vis et genereret dokument (alle med en AIAO-konto; hentes frisk fra repoet) ──
+    var docBg=document.getElementById("docBg");
+    var docTitle=document.getElementById("doc-title"), docMeta=document.getElementById("doc-meta"), docBody=document.getElementById("doc-body");
+    var DOC_TITLE={brugerguide:"Brugerguide", loesningsbeskrivelse:"Løsningsbeskrivelse"};
+
+    function requestView(poc,kind){
+      if(session) return runView(poc,kind);
+      pending={poc:poc,kind:kind,view:true};
+      openLogin();
+    }
+    function runView(poc,kind){
+      docTitle.textContent=(DOC_TITLE[kind]||"Dokument")+" · "+poc;
+      docMeta.textContent="";
+      docBody.textContent="Henter dokumentet fra repoet …";
+      docBg.classList.add("show");
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+encodeURIComponent(kind),{ headers:{ Authorization:"Bearer "+session } })
+        .then(function(r){
+          if(r.status===401){ session=null; pending={poc:poc,kind:kind,view:true}; docBg.classList.remove("show"); openLogin(); return null; }
+          if(r.status===403){ docBody.textContent="Din konto har ingen rolle på platformen endnu — kontakt en admin."; return null; }
+          if(r.status===404){ docBody.textContent="Dokumentet er ikke genereret endnu."; return null; }
+          if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
+          return r.json();
+        })
+        .then(function(d){
+          if(d&&d.markdown){
+            if(d.opdateret) docMeta.textContent="senest genereret "+fmtDate(d.opdateret);
+            docBody.innerHTML="";
+            docBody.appendChild(mdRender(d.markdown));
+          }
+        })
+        .catch(function(e){ docBody.textContent=(e&&e.message)||"Ukendt fejl"; });
+    }
+    document.getElementById("doc-close").addEventListener("click",function(){ docBg.classList.remove("show"); });
+    docBg.addEventListener("click",function(e){ if(e.target===docBg) docBg.classList.remove("show"); });
+    document.addEventListener("keydown",function(e){ if(e.key==="Escape") docBg.classList.remove("show"); });
+
+    // Minimal markdown → DOM (aldrig innerHTML for indholdet — XSS-sikkert). Samme dialekt som
+    // dashboardets MarkdownLite: #/##/### overskrifter, lister, ```kode```, > citat, **fed**,
+    // *kursiv*, `kode`, [tekst](https://…)-links, afsnit. Ukendt syntaks degraderer til tekst.
+    function mdInline(text){
+      var frag=document.createDocumentFragment();
+      var re=/(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(`([^`]+)`)|(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/g;
+      var last=0,m;
+      while((m=re.exec(text))!==null){
+        if(m.index>last) frag.appendChild(document.createTextNode(text.slice(last,m.index)));
+        var el;
+        if(m[2]!==undefined){ el=document.createElement("strong"); el.textContent=m[2]; }
+        else if(m[4]!==undefined){ el=document.createElement("em"); el.textContent=m[4]; }
+        else if(m[6]!==undefined){ el=document.createElement("code"); el.textContent=m[6]; }
+        else { el=document.createElement("a"); el.textContent=m[8]; el.href=m[9]; el.target="_blank"; el.rel="noopener noreferrer"; }
+        frag.appendChild(el);
+        last=re.lastIndex;
+      }
+      if(last<text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      return frag;
+    }
+    function mdRender(md){
+      var lines=String(md).replace(/\r\n/g,"\n").split("\n");
+      var root=document.createDocumentFragment();
+      var i=0;
+      function isBullet(s){ return /^\s*[-*]\s+/.test(s); }
+      function isNum(s){ return /^\s*\d+[.)]\s+/.test(s); }
+      while(i<lines.length){
+        var line=lines[i];
+        if(line.trim()===""){ i++; continue; }
+        if(line.trim().indexOf("```")===0){
+          var code=[]; i++;
+          while(i<lines.length&&lines[i].trim().indexOf("```")!==0) code.push(lines[i++]);
+          i++;
+          var pre=document.createElement("pre"), c=document.createElement("code");
+          c.textContent=code.join("\n"); pre.appendChild(c); root.appendChild(pre);
+          continue;
+        }
+        var h=/^(#{1,3})\s+(.*)$/.exec(line);
+        if(h){ var hd=document.createElement("h"+(h[1].length+1)); hd.appendChild(mdInline(h[2])); root.appendChild(hd); i++; continue; }
+        if(isBullet(line)||isNum(line)){
+          var num=isNum(line);
+          var list=document.createElement(num?"ol":"ul");
+          while(i<lines.length&&(num?isNum(lines[i]):isBullet(lines[i]))){
+            var li=document.createElement("li");
+            li.appendChild(mdInline(lines[i].replace(num?/^\s*\d+[.)]\s+/:/^\s*[-*]\s+/,"")));
+            list.appendChild(li); i++;
+          }
+          root.appendChild(list); continue;
+        }
+        if(/^\s*>/.test(line)){
+          var q=[];
+          while(i<lines.length&&/^\s*>/.test(lines[i])){ q.push(lines[i].replace(/^\s*>\s?/,"")); i++; }
+          var bq=document.createElement("blockquote"); bq.appendChild(mdInline(q.join(" "))); root.appendChild(bq);
+          continue;
+        }
+        var para=[line]; i++;
+        while(i<lines.length&&lines[i].trim()!==""&&!/^(#{1,3})\s/.test(lines[i])&&!isBullet(lines[i])&&!isNum(lines[i])&&lines[i].trim().indexOf("```")!==0&&!/^\s*>/.test(lines[i])){
+          para.push(lines[i]); i++;
+        }
+        var p=document.createElement("p"); p.appendChild(mdInline(para.join(" "))); root.appendChild(p);
+      }
+      return root;
     }
 
     function doLogin(){
@@ -278,7 +421,7 @@
           body:JSON.stringify({ email:email, password:pw })
         });
       }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
-        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; runDoc(p.poc,p.kind); } })
+        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; if(p.view){ runView(p.poc,p.kind); } else { runDoc(p.poc,p.kind); } } })
         .catch(function(e){ if(e&&e.message&&e.message!=="no-config") liErr.textContent=e.message; });
     }
     document.getElementById("li-go").addEventListener("click",doLogin);
