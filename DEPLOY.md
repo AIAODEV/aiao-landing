@@ -20,6 +20,11 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 
 > **NB:** `/arkitektur` ("Arkitektur — fra bruger til POC i produktion") er ligeledes bevidst **ikke** i topmenuen — et delbart, teknisk link (vugge-til-grav-gennemgang). Lavet som klon af `ledelse.html`: kun manifest-entry `9804da45` (side-JSX) byttet + synlig `<title>` opdateret. Funktionsnavnet beholdt som `LedelsePage`, så template'ens `App()` virker uændret; ingen menu-/Topbar-ændring. Round-trip + Babel-valideret; de 16 øvrige bundle-entries er byte-identiske med `ledelse.html`.
 
+> **NB (2026-07-08):** `repos.html` har nu — ud over "Åbn brugerguide/løsningsbeskrivelse"-knapperne —
+> også en ejer-handling **"Anmod om test"** (`POST /pocs/{poc}/promote` via samme inline-login-mønster
+> som doc-generering; serveren håndhæver ejer/admin). Da `repos.html` er hånd-skrevet, redigeres den
+> direkte — ingen bundle-kirurgi.
+
 > **NB (status pr. 2026-07-02):** `repos.html` er i dag den eneste HÅND-skrevne
 > standalone-side (vedligeholdelig kilde — kan redigeres direkte); `byg.html` er
 > siden blevet en kompileret bundle som `index/flow`. Menu-ændringer i de
