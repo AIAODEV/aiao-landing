@@ -313,10 +313,11 @@
       var actions="";
       if(r.live_url) actions+='<a class="btn green" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer">Åbn</a>';
       actions+='<a class="btn" href="'+esc(vscodeUrl)+'">Åbn i VS Code</a>';
-      // Top-højre forfremmelses-handling: rød "Anmod om test" (poc-stadiet) / grøn "Åbn test-miljø" (test).
-      var promoteTop="";
-      if(r.stage==="test"){ promoteTop='<a class="btn green" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer">Åbn test-miljø</a>'; }
-      else if(!r.stage||r.stage==="poc"){ promoteTop='<button class="btn primary" data-promote="'+esc(r.poc)+'">Anmod om test</button>'; }
+      // Top-højre: grøn "Åbn test-miljø" når POC'en er på test (åbn-handling). "Anmod om test" er en
+      // sjælden handling → den bor i detaljerne (promoteField), ikke i den altid-synlige top.
+      var promoteTop = (r.stage==="test")
+        ? '<a class="btn green" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer">Åbn test-miljø</a>'
+        : "";
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" . ")||"-";
       var stakPills=STAK.map(function(s){return '<span class="pill">'+esc(s)+"</span>";}).join("");
@@ -340,13 +341,21 @@
         docRow("brugerguide","brugerguide",r.brugerguide_opdateret)+
         docRow("loesningsbeskrivelse","løsningsbeskrivelse",r.loesningsbeskrivelse_opdateret)+
         '<div class="docmsg" id="docmsg-'+pe+'"></div>', true);
+      // "Anmod om test" (rød) bor i detaljerne — kun poc-stadiet, ejer/admin (server håndhæver). Sjælden
+      // handling, derfor ikke i den altid-synlige top. promomsg-kvitteringen sidder ved siden af knappen.
+      var promoteField = (!r.stage||r.stage==="poc")
+        ? field("Forfremmelse (kun ejer/admin)",
+            '<button class="btn primary" data-promote="'+esc(r.poc)+'">Anmod om test</button>'+
+            '<div class="docmsg" id="promomsg-'+pe+'"></div>', true)
+        : "";
       var details=
         field("Ejer","<div>"+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
         field("Stak",stakPills)+
         field("Formål",esc(r.formaal||"-"),true)+
         field("Oprettet",esc(fmtDate(r.oprettet)))+
         field("Resumé (AI)",resume,true)+
-        docsField;
+        docsField+
+        promoteField;
       return '<section class="card'+(r.is_live?"":" inactive")+'">'+
         '<div class="card-top">'+
           '<div class="titleblock">'+
@@ -358,7 +367,6 @@
           promoteTop+
           '<button class="chevron" aria-label="Vis detaljer"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.25 6 7.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
         "</div>"+
-        '<div class="docmsg" id="promomsg-'+pe+'"></div>'+
         '<div class="dots">'+dots+"</div>"+
         '<div class="details">'+details+"</div>"+
       "</section>";
