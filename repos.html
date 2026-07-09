@@ -97,6 +97,11 @@
     .docmsg.err { color: var(--ao-red); }
     .docmsg a { text-decoration: underline; color: var(--live); }
 
+    /* Forfremmelses-log: nested fold-ud inde i kortets detaljer (lazy-hentet) */
+    .promolog { margin-top: 8px; font-size: 13px; }
+    .promolog .entry { margin-top: 8px; line-height: 1.6; }
+    .promolog .entry:first-child { margin-top: 0; }
+
     .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
     .modal-bg.show { display: flex; }
     .modal { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 26px; width: min(380px, 94vw); }
@@ -348,6 +353,11 @@
             '<button class="btn primary" data-promote="'+esc(r.poc)+'">Anmod om test</button>'+
             '<div class="docmsg" id="promomsg-'+pe+'"></div>', true)
         : "";
+      // Forfremmelses-log: nested fold-ud (lukket by default) — lazy-henter GET /public/promotions/{poc}
+      // først når den åbnes, så vi ikke fyrer et fetch pr. kort ved sideload.
+      var promoLogField = field("Forfremmelses-log",
+        '<button class="btn" data-promolog="'+esc(r.poc)+'">▸ Forfremmelses-log</button>'+
+        '<div class="promolog" id="promolog-'+pe+'" style="display:none"></div>', true);
       var details=
         field("Ejer","<div>"+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
         field("Stak",stakPills)+
@@ -355,7 +365,8 @@
         field("Oprettet",esc(fmtDate(r.oprettet)))+
         field("Resumé (AI)",resume,true)+
         docsField+
-        promoteField;
+        promoteField+
+        promoLogField;
       return '<section class="card'+(r.is_live?"":" inactive")+'">'+
         '<div class="card-top">'+
           '<div class="titleblock">'+
@@ -375,6 +386,38 @@
       if(!Array.isArray(list)||list.length===0){ grid.innerHTML='<div class="state">Ingen aktive POC\'er endnu.</div>'; return; }
       grid.innerHTML=list.map(card).join("");
     }
+    // ── Forfremmelses-log: pr.-kort nested fold-ud, login-frit (GET /public/promotions/{poc}) ────
+    function dtFull(s){ if(!s) return "—"; var d=new Date(s); if(isNaN(d.getTime())) return "—"; try{return d.toLocaleString("da-DK");}catch(e){return esc(s);} }
+    function renderPromotionLog(d){
+      var head='<div class="f-sub">Oprettet '+dtFull(d&&d.oprettet)+' · stadie: '+esc((d&&d.stage)||"poc")+"</div>";
+      if(!d||!d.log||!d.log.length) return head+'<div class="f-sub">Ingen forfremmelser endnu.</div>';
+      var lines=d.log.map(function(e){
+        var status;
+        if(e.status==="afvist") status="Afvist "+dtFull(e.besluttet)+" af "+esc(e.besluttet_navn)+': "'+esc(e.begrundelse)+'"'+(e.udrullet?" · miljø nedlagt":"");
+        else if(e.nedlagt) status="Nedlagt "+dtFull(e.nedlagt);
+        else if(e.udrullet) status="Live på test "+dtFull(e.udrullet);
+        else if(e.status==="godkendt") status="Godkendt "+dtFull(e.besluttet)+" af "+esc(e.besluttet_navn);
+        else status="Afventer godkendelse";
+        return '<div class="entry"><div>Anmodet '+dtFull(e.anmodet)+" af "+esc(e.anmodet_navn)+(e.commit_sha7?" ("+esc(e.commit_sha7)+")":"")+'</div><div class="f-sub">'+status+"</div></div>";
+      }).join("");
+      return head+lines;
+    }
+    function togglePromoLog(btn){
+      var poc=btn.getAttribute("data-promolog");
+      var box=document.getElementById("promolog-"+encodeURIComponent(poc));
+      if(!box) return;
+      var willOpen=box.style.display==="none";
+      box.style.display=willOpen?"block":"none";
+      btn.textContent=(willOpen?"▾":"▸")+" Forfremmelses-log";
+      if(willOpen && !box.dataset.loaded){
+        box.dataset.loaded="1";
+        box.innerHTML='<div class="f-sub">Henter …</div>';
+        fetch(API+"/public/promotions/"+encodeURIComponent(poc))
+          .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+          .then(function(d){ box.innerHTML=renderPromotionLog(d); })
+          .catch(function(){ box.innerHTML='<div class="f-sub">Kunne ikke hente loggen.</div>'; delete box.dataset.loaded; });
+      }
+    }
     grid.addEventListener("click",function(e){
       var view=e.target.closest("[data-view]");
       if(view){ e.stopPropagation(); requestView(view.getAttribute("data-poc"), view.getAttribute("data-view")); return; }
@@ -382,6 +425,8 @@
       if(act){ e.stopPropagation(); requestDoc(act.getAttribute("data-poc"), act.getAttribute("data-act"), act); return; }
       var prom=e.target.closest("[data-promote]");
       if(prom){ e.stopPropagation(); requestPromote(prom.getAttribute("data-promote"), prom); return; }
+      var plog=e.target.closest("[data-promolog]");
+      if(plog){ e.stopPropagation(); togglePromoLog(plog); return; }
       if(e.target.closest("a")) return;
       var c=e.target.closest(".card"); if(c) c.classList.toggle("open");
     });
