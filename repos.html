@@ -275,6 +275,18 @@
     </div>
   </div>
 
+  <div class="modal-bg" id="promoBg">
+    <div class="modal">
+      <h3>Bekræft anmodning om test</h3>
+      <div id="promo-body"></div>
+      <div class="m-err" id="promo-err"></div>
+      <div class="row">
+        <button class="btn primary" id="promo-go">Bekræft</button>
+        <button class="btn" id="promo-cancel">Annullér</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     var API = "https://aiao-control-plane-production.up.railway.app";
     var GITHUB_ORG = "AIAODEV";
@@ -411,22 +423,89 @@
     }
 
     // ── Ejer-handling: anmod om forfremmelse poc→test (POST /pocs/{poc}/promote). Samme login/
-    // pending-mønster som docs; serveren håndhæver ejer/admin (403), tilstand + åben-anmodning (409). ──
+    // pending-mønster som docs; serveren håndhæver ejer/admin (403), tilstand + åben-anmodning (409).
+    // Før anmodningen sendes hentes et preview af den commit der pinnes (GET .../promote-preview) og
+    // vises i en bekræftelses-dialog med den faste fryse-forklaring; svarer /promote 409 med en nyere
+    // `current`-commit gen-vises dialogen med den, i stedet for at fejle. ──
     function promoMsg(poc,cls,html){ var el=document.getElementById("promomsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
-    function requestPromote(poc,btn){ if(session) return runPromote(poc,btn); pending={poc:poc,promote:true}; openLogin(); }
-    function runPromote(poc,btn){
+    function requestPromote(poc,btn){ if(session) return startPromoteFlow(poc,btn); pending={poc:poc,promote:true}; openLogin(); }
+
+    function commitSummary(commit){
+      var msg=((commit&&commit.message)||"").split("\n")[0];
+      return '<div style="font-family:var(--font-mono);font-size:13px;margin:0 0 4px;">'+esc((commit&&commit.short_sha)||"")+" "+esc(msg)+"</div>"+
+        '<div class="f-sub" style="margin:0 0 14px;">af '+esc((commit&&commit.author_name)||"-")+" · "+esc(fmtDate(commit&&commit.committed_at))+"</div>"+
+        "<p>Denne commit er frosset fra du sender den, til anmodningen er godkendt eller afvist — uanset hvad du senere ændrer på main. Du kan ikke sende en ny test-anmodning før denne er afgjort.</p>";
+    }
+
+    function startPromoteFlow(poc,btn){
       if(btn) btn.disabled=true;
-      promoMsg(poc,"","Sender anmodning …");
-      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/promote",{ method:"POST", headers:{ Authorization:"Bearer "+session } })
+      promoMsg(poc,"","Henter seneste commit …");
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/promote-preview",{ headers:{ Authorization:"Bearer "+session } })
         .then(function(r){
           if(r.status===401){ session=null; pending={poc:poc,promote:true}; promoMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); if(btn) btn.disabled=false; return null; }
           if(r.status===403){ promoMsg(poc,"err","Kun POC'ens ejer eller en admin kan anmode."); if(btn) btn.disabled=false; return null; }
-          if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
+          if(!r.ok) throw new Error("Kunne ikke aflæse seneste commit — prøv igen.");
           return r.json();
         })
-        .then(function(d){ if(d) promoMsg(poc,"ok","✓ Anmodning sendt — afventer godkendelse. En godkender/admin deployer test-miljøet."); })
+        .then(function(commit){
+          if(!commit) return;
+          promoMsg(poc,"","");
+          showPromoteConfirm(poc,commit,btn);
+        })
         .catch(function(e){ promoMsg(poc,"err",esc(e&&e.message?e.message:"Ukendt fejl")); if(btn) btn.disabled=false; });
     }
+
+    var promoBg=document.getElementById("promoBg");
+    var promoBody=document.getElementById("promo-body"), promoErr=document.getElementById("promo-err");
+    var promoGo=document.getElementById("promo-go"), promoCancel=document.getElementById("promo-cancel");
+    var promoState=null; // { poc, btn, expectedSha }
+
+    function showPromoteConfirm(poc,commit,btn){
+      promoState={ poc:poc, btn:btn, expectedSha:commit&&commit.sha };
+      promoErr.textContent="";
+      promoBody.innerHTML=commitSummary(commit);
+      promoGo.disabled=false;
+      promoBg.classList.add("show");
+    }
+    function closePromo(reenableBtn){
+      if(reenableBtn!==false && promoState && promoState.btn) promoState.btn.disabled=false;
+      promoBg.classList.remove("show");
+      promoState=null;
+    }
+    promoCancel.addEventListener("click",function(){ closePromo(); });
+    promoBg.addEventListener("click",function(e){ if(e.target===promoBg) closePromo(); });
+    promoGo.addEventListener("click",function(){
+      if(!promoState) return;
+      var poc=promoState.poc, btn=promoState.btn, expectedSha=promoState.expectedSha;
+      promoGo.disabled=true;
+      promoErr.textContent="";
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/promote",{
+        method:"POST",
+        headers:{ Authorization:"Bearer "+session, "Content-Type":"application/json" },
+        body:JSON.stringify({ expected_sha:expectedSha })
+      })
+        .then(function(r){
+          if(r.status===401){ session=null; pending={poc:poc,promote:true}; closePromo(); promoMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
+          if(r.status===403){ closePromo(); promoMsg(poc,"err","Kun POC'ens ejer eller en admin kan anmode."); return null; }
+          return r.json().catch(function(){ return {}; }).then(function(j){ return { status:r.status, ok:r.ok, body:j }; });
+        })
+        .then(function(res){
+          if(!res) return;
+          if(res.status===409 && res.body && res.body.detail && typeof res.body.detail==="object" && res.body.detail.current){
+            promoState.expectedSha=res.body.detail.current.sha;
+            promoBody.innerHTML='<div class="docmsg">main er opdateret siden — her er den nyeste. Bekræft igen.</div>'+commitSummary(res.body.detail.current);
+            promoGo.disabled=false;
+            return;
+          }
+          if(!res.ok){
+            var d=res.body&&res.body.detail;
+            throw new Error((d&&(d.message||d))||("Fejl ("+res.status+")"));
+          }
+          closePromo(false);
+          promoMsg(poc,"ok","✓ Anmodning sendt — afventer godkendelse. En godkender/admin deployer test-miljøet.");
+        })
+        .catch(function(e){ promoErr.textContent=(e&&e.message)||"Ukendt fejl"; promoGo.disabled=false; });
+    });
 
     // ── Doc-viewer: vis et genereret dokument — LOGIN-FRIT (sitet er allerede Entra-gated;
     // kun generering kræver AIAO-login). Hentes frisk fra repoet via /public/docs. ──
@@ -534,7 +613,7 @@
           body:JSON.stringify({ email:email, password:pw })
         });
       }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
-        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; if(p.promote){ runPromote(p.poc); } else { runDoc(p.poc,p.kind); } } })
+        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; if(p.promote){ startPromoteFlow(p.poc); } else { runDoc(p.poc,p.kind); } } })
         .catch(function(e){ if(e&&e.message&&e.message!=="no-config") liErr.textContent=e.message; });
     }
     document.getElementById("li-go").addEventListener("click",doLogin);
