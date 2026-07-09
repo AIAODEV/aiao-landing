@@ -63,6 +63,9 @@
     .btn:hover { background: var(--ink); color: var(--paper); }
     .btn.primary { background: var(--ao-red); border-color: var(--ao-red); color: #fff; }
     .btn.primary:hover { background: #b00; border-color: #b00; }
+    .btn.green { background: #16a34a; border-color: #16a34a; color: #fff; }
+    .btn.green:hover { background: #128a3e; border-color: #128a3e; }
+    .docrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
     .chevron { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 6px; line-height: 1; transition: transform var(--dur-fast) var(--ease-out); }
     .card.open .chevron { transform: rotate(180deg); }
 
@@ -308,46 +311,42 @@
       else if(r.stage==="drift") dots+='<span class="chip on"><span class="d"></span>Drift</span>';
       dots+=chip(r.has_github,"GitHub")+chip(r.has_vercel,"Vercel")+chip(r.has_railway,"Railway")+chip(r.has_supabase,"Supabase");
       var actions="";
-      if(r.live_url) actions+='<a class="btn primary" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer">Åbn</a>';
+      if(r.live_url) actions+='<a class="btn green" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer">Åbn</a>';
       actions+='<a class="btn" href="'+esc(vscodeUrl)+'">Åbn i VS Code</a>';
+      // Top-højre forfremmelses-handling: rød "Anmod om test" (poc-stadiet) / grøn "Åbn test-miljø" (test).
+      var promoteTop="";
+      if(r.stage==="test"){ promoteTop='<a class="btn green" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer">Åbn test-miljø</a>'; }
+      else if(!r.stage||r.stage==="poc"){ promoteTop='<button class="btn primary" data-promote="'+esc(r.poc)+'">Anmod om test</button>'; }
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" . ")||"-";
       var stakPills=STAK.map(function(s){return '<span class="pill">'+esc(s)+"</span>";}).join("");
       var resume=r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resumé afventer ...</span>';
       var pe=encodeURIComponent(r.poc);
-      // Varige "Åbn"-knapper (alle med en AIAO-konto kan læse) — vises når dokumentet findes
-      // (tidsstempel fra /public/repos); indholdet hentes frisk fra repoet ved klik.
-      var docBtns="";
-      if(r.brugerguide_opdateret) docBtns+='<button class="btn" data-view="brugerguide" data-poc="'+esc(r.poc)+'">Åbn brugerguide</button><span class="f-sub">senest '+esc(fmtDate(r.brugerguide_opdateret))+"</span>";
-      if(r.loesningsbeskrivelse_opdateret) docBtns+='<button class="btn" data-view="loesningsbeskrivelse" data-poc="'+esc(r.poc)+'">Åbn løsningsbeskrivelse</button><span class="f-sub">senest '+esc(fmtDate(r.loesningsbeskrivelse_opdateret))+"</span>";
-      var docsField=docBtns?field("Dokumenter",'<div class="docbtns">'+docBtns+"</div>",true):"";
-      var owner=
-        '<div class="f owner span">'+
-          '<div class="f-label">Dokumentation (kun ejer/admin)</div>'+
-          '<button class="btn" data-act="brugerguide" data-poc="'+esc(r.poc)+'">'+(r.brugerguide_opdateret?"Gengenerér brugerguide":"Lav brugerguide")+'</button>'+
-          '<button class="btn" data-act="loesningsbeskrivelse" data-poc="'+esc(r.poc)+'">'+(r.loesningsbeskrivelse_opdateret?"Gengenerér løsningsbeskrivelse":"Lav løsningsbeskrivelse")+'</button>'+
-          '<div class="docmsg" id="docmsg-'+pe+'"></div>'+
-        "</div>";
-      // Forfremmelse: ejer/admin kan anmode om test når POC'en er på poc-stadiet; er den allerede
-      // på test vises test-URL'en i stedet. Serveren håndhæver ejer/admin + tilstand (403/409).
-      var promote="";
-      if(r.stage==="test"){
-        promote='<div class="f owner span"><div class="f-label">Test-miljø</div>'+
-          '<a class="btn" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer">Åbn test-miljø</a></div>';
-      } else if(!r.stage || r.stage==="poc"){
-        promote='<div class="f owner span"><div class="f-label">Forfremmelse (kun ejer/admin)</div>'+
-          '<button class="btn" data-promote="'+esc(r.poc)+'">Anmod om test</button>'+
-          '<div class="docmsg" id="promomsg-'+pe+'"></div></div>';
+      // Dokumentation, per dokument på én linje: findes det → grøn "Åbn …" (alle med AIAO-konto kan
+      // læse; frisk fra repoet) + tidsstempel + hvid "Gengenerér …"; findes det ikke → grøn "Lav …"
+      // (lokke-CTA). Server håndhæver ejer/admin på generering.
+      function docRow(kind,label,ts){
+        var poc=esc(r.poc);
+        if(ts){
+          return '<div class="docrow">'+
+            '<button class="btn green" data-view="'+kind+'" data-poc="'+poc+'">Åbn '+label+'</button>'+
+            '<span class="f-sub">senest '+esc(fmtDate(ts))+'</span>'+
+            '<button class="btn" data-act="'+kind+'" data-poc="'+poc+'">Gengenerér '+label+'</button>'+
+          "</div>";
+        }
+        return '<div class="docrow"><button class="btn green" data-act="'+kind+'" data-poc="'+poc+'">Lav '+label+"</button></div>";
       }
+      var docsField=field("Dokumentation",
+        docRow("brugerguide","brugerguide",r.brugerguide_opdateret)+
+        docRow("loesningsbeskrivelse","løsningsbeskrivelse",r.loesningsbeskrivelse_opdateret)+
+        '<div class="docmsg" id="docmsg-'+pe+'"></div>', true);
       var details=
         field("Ejer","<div>"+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
         field("Stak",stakPills)+
         field("Formål",esc(r.formaal||"-"),true)+
         field("Oprettet",esc(fmtDate(r.oprettet)))+
         field("Resumé (AI)",resume,true)+
-        docsField+
-        owner+
-        promote;
+        docsField;
       return '<section class="card'+(r.is_live?"":" inactive")+'">'+
         '<div class="card-top">'+
           '<div class="titleblock">'+
@@ -356,8 +355,10 @@
           "</div>"+
           (r.is_live?'<span class="badge-live">Live</span>':"")+
           actions+
+          promoteTop+
           '<button class="chevron" aria-label="Vis detaljer"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.25 6 7.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
         "</div>"+
+        '<div class="docmsg" id="promomsg-'+pe+'"></div>'+
         '<div class="dots">'+dots+"</div>"+
         '<div class="details">'+details+"</div>"+
       "</section>";
