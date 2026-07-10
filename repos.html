@@ -342,9 +342,19 @@
         }
         return '<div class="docrow"><button class="btn green" data-act="'+kind+'" data-poc="'+poc+'">Lav '+label+"</button></div>";
       }
+      // Snyk-rapporten er læse-kun her (ingen "Kør scan" på den offentlige side — kun admin/godkender/
+      // ejer kan udløse en scan fra dashboardet). Vis kun en "Åbn"-knap, og kun når rapporten findes.
+      function snykRow(ts){
+        if(!ts) return "";
+        return '<div class="docrow">'+
+          '<button class="btn green" data-view="snyk" data-poc="'+esc(r.poc)+'">Åbn Snyk-rapport</button>'+
+          '<span class="f-sub">senest '+esc(fmtDate(ts))+'</span>'+
+        "</div>";
+      }
       var docsField=field("Dokumentation",
         docRow("brugerguide","brugerguide",r.brugerguide_opdateret)+
         docRow("loesningsbeskrivelse","løsningsbeskrivelse",r.loesningsbeskrivelse_opdateret)+
+        snykRow(r.snyk_opdateret)+
         '<div class="docmsg" id="docmsg-'+pe+'"></div>', true);
       // "Anmod om test" (rød) bor i detaljerne — kun poc-stadiet, ejer/admin (server håndhæver). Sjælden
       // handling, derfor ikke i den altid-synlige top. promomsg-kvitteringen sidder ved siden af knappen.
@@ -392,6 +402,10 @@
       var head='<div class="f-sub">Oprettet '+dtFull(d&&d.oprettet)+' · stadie: '+esc((d&&d.stage)||"poc")+"</div>";
       if(!d||!d.log||!d.log.length) return head+'<div class="f-sub">Ingen forfremmelser endnu.</div>';
       var lines=d.log.map(function(e){
+        // Snyk-kørsler er egne log-linjer (ingen aktør — den offentlige log er kurateret uden identitet).
+        if(e.type==="snyk"){
+          return '<div class="entry">🛡 Snyk-scan '+dtFull(e.tidspunkt)+" — "+(e.kritisk||0)+" kritisk · "+(e.høj||0)+" høj · "+(e.middel||0)+" middel · "+(e.lav||0)+" lav</div>";
+        }
         var status;
         if(e.status==="afvist") status="Afvist "+dtFull(e.besluttet)+" af "+esc(e.besluttet_navn)+': "'+esc(e.begrundelse)+'"'+(e.udrullet?" · miljø nedlagt":"");
         else if(e.nedlagt) status="Nedlagt "+dtFull(e.nedlagt);
@@ -565,7 +579,7 @@
     // kun generering kræver AIAO-login). Hentes frisk fra repoet via /public/docs. ──
     var docBg=document.getElementById("docBg");
     var docTitle=document.getElementById("doc-title"), docMeta=document.getElementById("doc-meta"), docBody=document.getElementById("doc-body");
-    var DOC_TITLE={brugerguide:"Brugerguide", loesningsbeskrivelse:"Løsningsbeskrivelse"};
+    var DOC_TITLE={brugerguide:"Brugerguide", loesningsbeskrivelse:"Løsningsbeskrivelse", snyk:"Snyk-sikkerhedsrapport"};
 
     function requestView(poc,kind){ runView(poc,kind); }
     function runView(poc,kind){
