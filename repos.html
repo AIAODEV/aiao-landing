@@ -342,14 +342,18 @@
         }
         return '<div class="docrow"><button class="btn green" data-act="'+kind+'" data-poc="'+poc+'">Lav '+label+"</button></div>";
       }
-      // Snyk-rapporten er læse-kun her (ingen "Kør scan" på den offentlige side — kun admin/godkender/
-      // ejer kan udløse en scan fra dashboardet). Vis kun en "Åbn"-knap, og kun når rapporten findes.
+      // Snyk-rapport: "Åbn" (når rapporten findes) + "Kør Snyk-scan" (owner-login, samme flow som docs).
+      // Serveren håndhæver rolle-gaten (admin/godkender = alle POC'er, bygger = kun egne; ellers 403).
       function snykRow(ts){
-        if(!ts) return "";
-        return '<div class="docrow">'+
-          '<button class="btn green" data-view="snyk" data-poc="'+esc(r.poc)+'">Åbn Snyk-rapport</button>'+
-          '<span class="f-sub">senest '+esc(fmtDate(ts))+'</span>'+
-        "</div>";
+        var poc=esc(r.poc);
+        if(ts){
+          return '<div class="docrow">'+
+            '<button class="btn green" data-view="snyk" data-poc="'+poc+'">Åbn Snyk-rapport</button>'+
+            '<span class="f-sub">senest '+esc(fmtDate(ts))+'</span>'+
+            '<button class="btn" data-act="snyk" data-poc="'+poc+'">Kør Snyk-scan igen</button>'+
+          "</div>";
+        }
+        return '<div class="docrow"><button class="btn green" data-act="snyk" data-poc="'+poc+'">Kør Snyk-scan</button></div>';
       }
       var docsField=field("Dokumentation",
         docRow("brugerguide","brugerguide",r.brugerguide_opdateret)+
@@ -455,7 +459,7 @@
     var session=null, authCfg=null, pending=null;
     var loginBg=document.getElementById("loginBg");
     var liEmail=document.getElementById("li-email"), liPw=document.getElementById("li-pw"), liErr=document.getElementById("li-err");
-    var LABEL={brugerguide:"brugerguide", loesningsbeskrivelse:"løsningsbeskrivelse"};
+    var LABEL={brugerguide:"brugerguide", loesningsbeskrivelse:"løsningsbeskrivelse", snyk:"Snyk-rapport"};
 
     function docMsg(poc,cls,html){ var el=document.getElementById("docmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
     function getAuthCfg(){
@@ -472,7 +476,7 @@
     }
     function runDoc(poc,kind,btn){
       if(btn) btn.disabled=true;
-      docMsg(poc,"","Genererer "+(LABEL[kind]||"dokument")+" …");
+      docMsg(poc,"",(kind==="snyk"?"Kører Snyk-scan …":"Genererer "+(LABEL[kind]||"dokument")+" …"));
       fetch(API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+kind,{ method:"POST", headers:{ Authorization:"Bearer "+session } })
         .then(function(r){
           if(r.status===401){ session=null; pending={poc:poc,kind:kind}; docMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
@@ -483,7 +487,7 @@
         .then(function(d){
           if(d&&d.ok){
             docMsg(poc,"ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <button class=\"btn\" data-view=\""+esc(kind)+"\" data-poc=\""+esc(poc)+"\">Åbn</button>");
-            if(btn) btn.textContent="Gengenerér "+(LABEL[kind]||"dokument");
+            if(btn) btn.textContent=(kind==="snyk"?"Kør Snyk-scan igen":"Gengenerér "+(LABEL[kind]||"dokument"));
           }
         })
         .catch(function(e){ docMsg(poc,"err",esc(e&&e.message?e.message:"Ukendt fejl")); })
