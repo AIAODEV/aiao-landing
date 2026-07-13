@@ -301,6 +301,7 @@
     var STAK = ["Next.js", "FastAPI", "Supabase", "Claude Code"];
     var grid = document.getElementById("grid");
     function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+    function cap(s){ s=String(s==null?"":s); return s?s.charAt(0).toUpperCase()+s.slice(1):s; }  // "doer" → "Doer" (kun visning)
     function handleOf(r){ if(!r.ejer_handle) return ""; return r.ejer_handle.charAt(0)==="@"?r.ejer_handle:"@"+r.ejer_handle; }
     function host(r){ if(r.live_url){try{return new URL(r.live_url).host;}catch(e){}} return r.poc+".aiao.dev"; }
     function fmtDate(iso){ if(!iso) return "-"; var d=new Date(iso); if(isNaN(d.getTime())) return "-"; try{return d.toLocaleDateString("da-DK",{day:"numeric",month:"long",year:"numeric"});}catch(e){return iso;} }
@@ -384,9 +385,9 @@
       return '<section class="card'+(r.is_live?"":" inactive")+'">'+
         '<div class="card-top">'+
           '<div class="titleblock">'+
-            '<div class="name">'+esc(title)+(handle?' <span class="handle">. '+esc(handle)+"</span>":"")+"</div>"+
+            '<div class="name">'+esc(cap(title))+(handle?' <span class="handle">. '+esc(handle)+"</span>":"")+"</div>"+
+            (r.formaal?'<div class="name" style="font-weight:500">'+esc(r.formaal)+"</div>":"")+
             '<div class="sub">'+esc(host(r))+"</div>"+
-            (r.formaal?'<div class="sub">'+esc(r.formaal)+"</div>":"")+
           "</div>"+
           (r.is_live?'<span class="badge-live">Live</span>':"")+
           actions+
