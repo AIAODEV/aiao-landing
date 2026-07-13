@@ -308,7 +308,7 @@
     function field(label,val,span){ return '<div class="f'+(span?" span":"")+'"><div class="f-label">'+esc(label)+'</div><div class="f-val">'+val+"</div></div>"; }
     function card(r){
       var handle=handleOf(r);
-      var title=r.formaal||r.display_name||r.poc;
+      var title=r.slug||r.poc;  // titel = POC'ens offentlige adresse-navn (slug); legacy: slug = pocN
       var vscodeUrl="vscode://vscode.git/clone?url=https://github.com/"+GITHUB_ORG+"/"+encodeURIComponent(r.poc)+".git";
       var dots="";
       if(r.is_live) dots+='<span class="chip live"><span class="d"></span>Live</span>';
@@ -386,6 +386,7 @@
           '<div class="titleblock">'+
             '<div class="name">'+esc(title)+(handle?' <span class="handle">. '+esc(handle)+"</span>":"")+"</div>"+
             '<div class="sub">'+esc(host(r))+"</div>"+
+            (r.formaal?'<div class="sub">'+esc(r.formaal)+"</div>":"")+
           "</div>"+
           (r.is_live?'<span class="badge-live">Live</span>':"")+
           actions+
