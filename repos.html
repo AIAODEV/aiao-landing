@@ -324,6 +324,12 @@
       var promoteTop = (r.stage==="test")
         ? '<a class="btn green" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer">Åbn test-miljø</a>'
         : "";
+      // Drift-stadiet: grøn "Åbn drift" → <slug>.aiao.work (produktions-adressen). Spejler ÅBN DRIFT på
+      // admin-PocCard; drift_url er en bar host (uden skema). Markér "(afventer DNS)" indtil cert'et er
+      // udstedt, så et klik ikke rammer ERR_CERT_DATE_INVALID uden forklaring.
+      var driftTop = (r.stage==="drift" && r.drift_url)
+        ? '<a class="btn green" href="https://'+esc(r.drift_url)+'" target="_blank" rel="noopener noreferrer">Åbn drift'+(r.drift_dns_verified?"":" (afventer DNS)")+'</a>'
+        : "";
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" . ")||"-";
       var stakPills=STAK.map(function(s){return '<span class="pill">'+esc(s)+"</span>";}).join("");
@@ -392,6 +398,7 @@
           (r.is_live?'<span class="badge-live">Live</span>':"")+
           actions+
           promoteTop+
+          driftTop+
           '<button class="chevron" aria-label="Vis detaljer"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.25 6 7.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
         "</div>"+
         '<div class="dots">'+dots+"</div>"+
