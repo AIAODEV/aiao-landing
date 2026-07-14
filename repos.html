@@ -423,23 +423,33 @@
           return '<div class="entry">🛡 Sikkerhedsscan (Snyk) '+dtFull(e.tidspunkt)+".<div class=\"f-sub\">Fund: "+(e.kritisk||0)+" kritiske · "+(e.høj||0)+" høje · "+(e.middel||0)+" middel · "+(e.lav||0)+" lave.</div></div>";
         }
         // Beskrivende trin efter anmodningen (kun dem der faktisk skete), spejler PromotionLog.tsx.
-        var steps=[];
-        if(e.status==="afvist"){
-          if(e.udrullet){
-            steps.push("🚀 Udrullet til test-miljøet "+dtFull(e.udrullet)+".");
-            steps.push("⛔ Afvist efter test af "+who(e.besluttet_navn)+" "+dtFull(e.besluttet)+". Begrundelse: «"+esc(e.begrundelse||"")+"». Test-miljøet blev nedlagt igen.");
-          } else {
-            steps.push("⛔ Afvist af "+who(e.besluttet_navn)+" "+dtFull(e.besluttet)+(e.begrundelse?". Begrundelse: «"+esc(e.begrundelse)+"»":" (ingen begrundelse angivet)")+".");
-          }
-        } else if(e.status==="godkendt"){
-          steps.push("✅ Godkendt til test af "+who(e.besluttet_navn)+" "+dtFull(e.besluttet)+".");
-          if(e.udrullet) steps.push("🚀 Udrullet til test-miljøet "+dtFull(e.udrullet)+".");
-          if(e.nedlagt) steps.push("🗑 Test-miljøet blev nedlagt "+dtFull(e.nedlagt)+" — POC'en er tilbage på udviklings-stadiet.");
-          else if(e.udrullet) steps.push("🟢 Kører stadig i test-miljøet.");
+        var commitTxt=(e.commit_sha7?" (koden frosset på commit "+esc(e.commit_sha7)+")":"");
+        var steps=[], top;
+        if(e.til_stage==="drift"){
+          // Drift-anmodningen laves ALLEREDE godkendt af én godkender (ét klik "Opret i produktion")
+          // → ingen sendt→afventer→godkendt-dans; kun udrullet/nedlagt fortæller historien.
+          top="🏭 "+who(e.anmodet_navn)+" satte POC'en i produktion "+dtFull(e.anmodet)+commitTxt+".";
+          if(e.nedlagt) steps.push("🗑 Produktions-miljøet blev nedlagt "+dtFull(e.nedlagt)+" — POC'en er ude af produktion igen.");
+          else if(e.udrullet) steps.push("🟢 Kører i produktion.");
+          else steps.push("⏳ Udrulningen til produktion blev ikke fuldført.");
         } else {
-          steps.push("⏳ Afventer en godkenders ja/nej.");
+          top="📤 "+who(e.anmodet_navn)+" sendte POC'en til test-godkendelse "+dtFull(e.anmodet)+commitTxt+".";
+          if(e.status==="afvist"){
+            if(e.udrullet){
+              steps.push("🚀 Udrullet til test-miljøet "+dtFull(e.udrullet)+".");
+              steps.push("⛔ Afvist efter test af "+who(e.besluttet_navn)+" "+dtFull(e.besluttet)+". Begrundelse: «"+esc(e.begrundelse||"")+"». Test-miljøet blev nedlagt igen.");
+            } else {
+              steps.push("⛔ Afvist af "+who(e.besluttet_navn)+" "+dtFull(e.besluttet)+(e.begrundelse?". Begrundelse: «"+esc(e.begrundelse)+"»":" (ingen begrundelse angivet)")+".");
+            }
+          } else if(e.status==="godkendt"){
+            steps.push("✅ Godkendt til test af "+who(e.besluttet_navn)+" "+dtFull(e.besluttet)+".");
+            if(e.udrullet) steps.push("🚀 Udrullet til test-miljøet "+dtFull(e.udrullet)+".");
+            if(e.nedlagt) steps.push("🗑 Test-miljøet blev nedlagt "+dtFull(e.nedlagt)+" — POC'en er tilbage på udviklings-stadiet.");
+            else if(e.udrullet) steps.push("🟢 Kører stadig i test-miljøet.");
+          } else {
+            steps.push("⏳ Afventer en godkenders ja/nej.");
+          }
         }
-        var top="📤 "+who(e.anmodet_navn)+" sendte POC'en til test-godkendelse "+dtFull(e.anmodet)+(e.commit_sha7?" (koden frosset på commit "+esc(e.commit_sha7)+")":"")+".";
         return '<div class="entry"><div>'+top+"</div>"+steps.map(function(s){return '<div class="f-sub">'+s+"</div>";}).join("")+"</div>";
       }).join("");
       return head+lines;
