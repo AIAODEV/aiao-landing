@@ -333,7 +333,13 @@
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" . ")||"-";
       var stakPills=STAK.map(function(s){return '<span class="pill">'+esc(s)+"</span>";}).join("");
-      var resume=r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resumé afventer ...</span>';
+      var rpe=encodeURIComponent(r.poc);
+      // Resumé (AI) + generér-knap (ejer-login, som doc-knapperne) → POST /pocs/{poc}/ai-resume.
+      var resume=(r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resumé afventer ...</span>')+
+        '<div class="docrow" style="margin-top:8px">'+
+        '<button class="btn'+(r.ai_resume?"":" green")+'" data-act="resume" data-poc="'+esc(r.poc)+'">'+(r.ai_resume?"Gengenerér resumé":"Generér resumé")+"</button>"+
+        '<div class="docmsg" id="docmsg-'+rpe+'-resume"></div>'+
+        "</div>";
       var pe=encodeURIComponent(r.poc);
       // Dokumentation, per dokument på én linje: findes det → grøn "Åbn …" (alle med AIAO-konto kan
       // læse; frisk fra repoet) + tidsstempel + hvid "Gengenerér …"; findes det ikke → grøn "Lav …"
@@ -510,21 +516,34 @@
     }
     function runDoc(poc,kind,btn){
       if(btn) btn.disabled=true;
-      docMsg(poc,"",(kind==="snyk"?"Kører Snyk-scan …":"Genererer "+(LABEL[kind]||"dokument")+" …"));
-      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+kind,{ method:"POST", headers:{ Authorization:"Bearer "+session } })
+      // Resumé har eget endpoint (/ai-resume) + egen besked-boks; docs/snyk går til /docs/{kind}.
+      var isResume=(kind==="resume");
+      var url=isResume ? API+"/pocs/"+encodeURIComponent(poc)+"/ai-resume"
+                       : API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+kind;
+      function say(cls,html){
+        if(isResume){ var el=document.getElementById("docmsg-"+encodeURIComponent(poc)+"-resume");
+          if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
+        else docMsg(poc,cls,html);
+      }
+      say("",(isResume?"Genererer resumé …":(kind==="snyk"?"Kører Snyk-scan …":"Genererer "+(LABEL[kind]||"dokument")+" …")));
+      fetch(url,{ method:"POST", headers:{ Authorization:"Bearer "+session } })
         .then(function(r){
-          if(r.status===401){ session=null; pending={poc:poc,kind:kind}; docMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
-          if(r.status===403){ docMsg(poc,"err","Kun POC'ens ejer eller en admin kan dette."); return null; }
+          if(r.status===401){ session=null; pending={poc:poc,kind:kind}; say("err","Session udløbet — log ind igen."); openLogin(); return null; }
+          if(r.status===403){ say("err","Kun POC'ens ejer eller en admin kan dette."); return null; }
           if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
           return r.json();
         })
         .then(function(d){
-          if(d&&d.ok){
-            docMsg(poc,"ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <button class=\"btn\" data-view=\""+esc(kind)+"\" data-poc=\""+esc(poc)+"\">Åbn</button>");
+          if(!d) return;
+          if(isResume){
+            say("ok","✓ Resumé opdateret — genindlæs siden for at se det.");
+            if(btn) btn.textContent="Gengenerér resumé";
+          } else if(d.ok){
+            say("ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <button class=\"btn\" data-view=\""+esc(kind)+"\" data-poc=\""+esc(poc)+"\">Åbn</button>");
             if(btn) btn.textContent=(kind==="snyk"?"Kør Snyk-scan igen":"Gengenerér "+(LABEL[kind]||"dokument"));
           }
         })
-        .catch(function(e){ docMsg(poc,"err",esc(e&&e.message?e.message:"Ukendt fejl")); })
+        .catch(function(e){ say("err",esc(e&&e.message?e.message:"Ukendt fejl")); })
         .finally(function(){ if(btn) btn.disabled=false; });
     }
 
