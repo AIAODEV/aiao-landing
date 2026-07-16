@@ -375,10 +375,21 @@
         '<div class="docmsg" id="docmsg-'+pe+'"></div>', true);
       // "Anmod om test" (rød) bor i detaljerne — kun poc-stadiet, ejer/admin (server håndhæver). Sjælden
       // handling, derfor ikke i den altid-synlige top. promomsg-kvitteringen sidder ved siden af knappen.
+      // Gate: en POC må først sendes til test når alle fire artefakter er genereret (resumé + brugerguide
+      // + løsningsbeskrivelse + Snyk). Mangler nogen → knappen er slået fra + en note siger hvad der mangler
+      // (serveren håndhæver det samme med 409 som backstop). Knapperne til at generere står ovenfor (docsField).
+      var promoMissing=[[r.ai_resume,"resumé"],[r.brugerguide_opdateret,"brugerguide"],
+        [r.loesningsbeskrivelse_opdateret,"løsningsbeskrivelse"],[r.snyk_opdateret,"Snyk-rapport"]]
+        .filter(function(x){return !x[0];}).map(function(x){return x[1];});
+      var promoteInner = promoMissing.length===0
+        ? '<button class="btn primary" data-promote="'+esc(r.poc)+'">Anmod om test</button>'
+        : '<button class="btn primary" disabled style="opacity:.5;cursor:not-allowed" '+
+          'title="Generér resumé, brugerguide, løsningsbeskrivelse og Snyk-rapport først">Anmod om test</button>'+
+          '<div class="f-sub" style="margin-top:6px">Kan først sendes til test når disse er genereret (knapperne ovenfor): '+
+          esc(promoMissing.join(", "))+'.</div>';
       var promoteField = (!r.stage||r.stage==="poc")
         ? field("Forfremmelse (kun ejer/admin)",
-            '<button class="btn primary" data-promote="'+esc(r.poc)+'">Anmod om test</button>'+
-            '<div class="docmsg" id="promomsg-'+pe+'"></div>', true)
+            promoteInner+'<div class="docmsg" id="promomsg-'+pe+'"></div>', true)
         : "";
       // Forfremmelses-log: nested fold-ud (lukket by default) — lazy-henter GET /public/promotions/{poc}
       // først når den åbnes, så vi ikke fyrer et fetch pr. kort ved sideload.
