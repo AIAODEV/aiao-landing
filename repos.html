@@ -385,9 +385,15 @@
       var promoLogField = field("Forfremmelses-log",
         '<button class="btn" data-promolog="'+esc(r.poc)+'">▸ Forfremmelses-log</button>'+
         '<div class="promolog" id="promolog-'+pe+'" style="display:none"></div>', true);
+      // Schema-navnet (fx "Schema poc50") — POC'ens Supabase-schema i det delte projekt. Vist som
+      // mono-chip; == pocN (allerede offentligt), så intet følsomt eksponeres.
+      var schemaVal=r.supabase_schema
+        ? '<span style="font-family:var(--font-mono)">'+esc(r.supabase_schema)+"</span>"
+        : "-";
       var details=
         field("Ejer","<div>"+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
         field("Stak",stakPills)+
+        field("Schema",schemaVal)+
         field("Formål",esc(r.formaal||"-"),true)+
         field("Oprettet",esc(fmtDate(r.oprettet)))+
         field("Resumé (AI)",resume,true)+
