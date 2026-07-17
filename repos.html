@@ -37,6 +37,31 @@
       --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
       --maxw: 1080px;
       --gutter: 24px;
+
+      /* ── POC-kort: admin.aiao.dev's kort-design (terminal.css --cp-*) kopieret 1:1, så
+         kortene her og på admin-dashboardet er visuelt identiske. KUN kort-laget — sidens
+         egen ramme (topbar/hero/footer/modaler) bruger fortsat tokens ovenfor. ── */
+      --cp-accent: #FE0000;
+      --cp-accent-hover: #AA1F25;
+      --cp-live: #7ED321;
+      --cp-line: #EBE9E6;
+      --cp-grey: #B1B1B1;
+      --cp-dot-off: #EBE9E6;
+      --cp-ink: #222222;
+      --cp-surface: #FFFFFF;
+      --cp-radius: 8px;
+      --cp-radius-sm: 4px;
+      --cp-shadow-card: 0 1px 2px rgba(0,0,0,.05), 0 12px 32px -10px rgba(20,22,30,.16);
+      --cp-grad-live: linear-gradient(180deg,#1CB454 0%,#16A34A 100%);
+      --cp-grad-live-hover: linear-gradient(180deg,#149A4A 0%,#128040 100%);
+      --cp-grad-accent: linear-gradient(180deg,#EE2A36 0%,#E11D2A 100%);
+      --cp-grad-accent-hover: linear-gradient(180deg,#C82230 0%,#B71722 100%);
+      --cp-shadow-accent: 0 2px 8px -1px rgba(225,29,42,.40);
+      --cp-shadow-live: 0 2px 8px -1px rgba(22,163,74,.35);
+      --cp-pill-next-bg:#F0F0F0;   --cp-pill-next-fg:#111111;   --cp-pill-next-line:#DADADA;
+      --cp-pill-fast-bg:#E4F4F1;   --cp-pill-fast-fg:#05998B;   --cp-pill-fast-line:#BFE6DF;
+      --cp-pill-supa-bg:#E7F7EE;   --cp-pill-supa-fg:#2E9E6B;   --cp-pill-supa-line:#BEE9CF;
+      --cp-pill-claude-bg:#F7ECE5; --cp-pill-claude-fg:#C15F3C; --cp-pill-claude-line:#EAD2C4;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
@@ -49,41 +74,88 @@
     h1 { font-family: var(--font-display); font-size: 34px; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 8px; }
     .lead { color: var(--muted); margin: 0 0 32px; font-size: 17px; max-width: 62ch; }
 
-    .grid { display: grid; gap: 14px; }
-    .card { background: var(--paper); border: 1px solid var(--line); border-left: 3px solid var(--ao-red); border-radius: var(--radius-lg); padding: 18px 20px; }
-    .card.inactive { border-left-color: var(--line); }
-    .card-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; cursor: pointer; }
-    .titleblock { flex: 1 1 220px; min-width: 0; }
-    .titleblock .name { font-weight: 700; font-size: 17px; letter-spacing: -0.01em; }
-    .titleblock .name .handle { color: var(--muted); font-weight: 400; }
-    .titleblock .sub { color: var(--muted); font-size: 12px; margin-top: 3px; font-family: var(--font-mono); letter-spacing: 0.04em; }
+    .grid { display: grid; gap: 10px; }
 
-    .badge-live { color: var(--live); font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+    /* ── POC-kort (admin-PocCard 1:1): hvidt kort, rød venstre-kant på aktive, mono-tekst ── */
+    .cp-card { font-family: var(--font-mono); background: var(--cp-surface); color: var(--cp-ink);
+      border: 1px solid var(--cp-line); border-left: 3px solid var(--cp-accent); border-radius: var(--cp-radius);
+      padding: 12px 14px; cursor: pointer; box-shadow: var(--cp-shadow-card); }
+    .cp-card--inactive { border-left-color: var(--cp-dot-off); }
+    .cp-card__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .cp-card__title { flex: 1 1 160px; min-width: 0; }
+    .cp-card__name { font-weight: 700; font-size: 14px; }
+    .cp-card__purpose { font-size: 13px; }
+    .cp-card__host { font-size: 11px; }
+    .cp-card__details { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--cp-line); }
+    .cp-card.open .cp-card__details { display: block; }
+
+    .cp-label { font-family: var(--font-mono); text-transform: uppercase; font-size: 10px; letter-spacing: 0.08em; color: var(--cp-accent); font-weight: 700; margin-bottom: 3px; }
+    .cp-meta  { color: var(--cp-grey); font-size: 12px; }
+    .cp-avatar { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--cp-accent); color: var(--cp-ink);
+      display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex: none; }
+    .cp-avatar--inactive { border-color: var(--cp-dot-off); }
+    .cp-live   { color: var(--cp-live); font-weight: 700; font-size: 12px; letter-spacing: 0.06em; }
+
+    .cp-btn { font-family: var(--font-mono); font-size: 12px; padding: 6px 14px; border-radius: var(--cp-radius);
+      cursor: pointer; border: 1px solid transparent; letter-spacing: 0.02em;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      text-decoration: none; transition: background .12s ease, border-color .12s ease; }
+    .cp-btn > svg { width: 14px; height: 14px; flex: none; }
+    .cp-btn--live { background: var(--cp-grad-live); color: #fff; border-color: #16A34A; box-shadow: var(--cp-shadow-live); }
+    .cp-btn--live:hover { background: var(--cp-grad-live-hover); border-color: #128040; }
+    .cp-btn--ghost { background: var(--cp-surface); color: var(--cp-ink); border-color: var(--cp-line); }
+    .cp-btn--ghost:hover { background: #F4F4F4; border-color: var(--cp-grey); }
+    .cp-btn--primary { background: var(--cp-grad-accent); color: #fff; border-color: var(--cp-accent); box-shadow: var(--cp-shadow-accent); }
+    .cp-btn--primary:hover { background: var(--cp-grad-accent-hover); border-color: var(--cp-accent-hover); }
+    .cp-btn:disabled { opacity: .55; cursor: default; }
+
+    .cp-pill { display: inline-block; font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; margin: 0 6px 4px 0; border-radius: var(--cp-radius-sm); border: 1px solid var(--cp-line); color: var(--cp-grey); }
+    .cp-pill--next   { background: var(--cp-pill-next-bg);   color: var(--cp-pill-next-fg);   border-color: var(--cp-pill-next-line); }
+    .cp-pill--fast   { background: var(--cp-pill-fast-bg);   color: var(--cp-pill-fast-fg);   border-color: var(--cp-pill-fast-line); }
+    .cp-pill--pg     { background: var(--cp-pill-supa-bg);   color: var(--cp-pill-supa-fg);   border-color: var(--cp-pill-supa-line); }
+    .cp-pill--ts     { background: var(--cp-pill-next-bg);   color: var(--cp-pill-next-fg);   border-color: var(--cp-pill-next-line); }
+    .cp-pill--claude { background: var(--cp-pill-claude-bg); color: var(--cp-pill-claude-fg); border-color: var(--cp-pill-claude-line); }
+
+    /* Provider-tjek-chips i udfoldet kort: "GitHub ✓ Vercel ✓ …" */
+    .cp-provrow { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .cp-provchip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; padding: 4px 10px;
+      border-radius: 20px; border: 1px solid transparent; }
+    .cp-provchip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .cp-provchip--on { background: #E7F7EE; border-color: #BEE9CF; color: #2E9E6B; }
+    .cp-provchip--on::before { background: #16A34A; }
+    .cp-provchip--off { background: #F2F2F2; border-color: #DADADA; color: #8A8A8A; }
+    .cp-provchip--off::before { background: #CFCFCF; }
+
+    .cp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+    .f.span { grid-column: 1 / -1; }
+    .cp-card__details > .f { margin-top: 12px; }
+    .cp-fval { font-size: 14px; }
+    .cp-fval .ital { color: var(--cp-grey); font-style: italic; }
+    .f-sub { font-family: var(--font-mono); font-size: 12px; color: var(--cp-grey); margin-top: 2px; }
+
+    /* Dokumentation-panel (eget let-gråt panel, faste ÅBN/handling-kolonner så alt aligner) */
+    .cp-docpanel { border: 1px solid #E4E4E4; border-radius: var(--cp-radius); background: #FAFAFA;
+      margin-top: 12px; padding: 0 16px 4px; }
+    .cp-docpanel__title { text-transform: uppercase; font-size: 11px; letter-spacing: 0.1em;
+      color: var(--cp-grey); font-weight: 700; padding: 14px 0 10px; }
+    .cp-docrow2 { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid #EDEDED; flex-wrap: wrap; }
+    .cp-docrow2:first-of-type { border-top: none; }
+    .cp-docrow2__info { flex: 1 1 200px; min-width: 0; }
+    .cp-docrow2__title { font-weight: 700; font-size: 15px; }
+    .cp-docrow2__ts { font-size: 11px; color: var(--cp-grey); }
+    .cp-docrow2__ts--missing { font-style: italic; }
+    .cp-docrow2__open { flex: none; width: 84px; box-sizing: border-box; }
+    .cp-docrow2__action { flex: none; width: 168px; box-sizing: border-box; }
+    .cp-docrow2__open > .cp-btn, .cp-docrow2__action > .cp-btn { width: 100%; }
+
+    /* Modal-knapper (uændret gammelt look — modalerne er uden for kort-løftet) */
     .btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-weight: 500; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; padding: 9px 14px; border-radius: var(--radius-md); border: 1px solid var(--ink); background: var(--paper); color: var(--ink); transition: all var(--dur-fast) var(--ease-out); }
     .btn:hover { background: var(--ink); color: var(--paper); }
     .btn.primary { background: var(--ao-red); border-color: var(--ao-red); color: #fff; }
     .btn.primary:hover { background: #b00; border-color: #b00; }
-    .btn.green { background: #16a34a; border-color: #16a34a; color: #fff; }
-    .btn.green:hover { background: #128a3e; border-color: #128a3e; }
     .docrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-    .chevron { border: none; background: none; cursor: pointer; color: var(--muted); font-size: 14px; padding: 6px; line-height: 1; transition: transform var(--dur-fast) var(--ease-out); }
-    .card.open .chevron { transform: rotate(180deg); }
-
-    .dots { display: flex; gap: 7px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-    .chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 3px 9px; }
-    .chip .d { width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--line); }
-    .chip.on .d { background: var(--ink); }
-    .chip.live { color: var(--live); border-color: var(--live); }
-    .chip.live .d { background: var(--live); }
-
-    .details { display: none; grid-template-columns: 1fr 1fr; gap: 14px 28px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
-    .card.open .details { display: grid; }
-    .f.span { grid-column: 1 / -1; }
-    .f-label { font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 4px; }
-    .f-val { font-size: 14px; }
-    .f-val .ital { color: var(--muted); font-style: italic; }
-    .f-sub { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-top: 2px; }
-    .pill { display: inline-block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.06em; border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 3px 10px; margin: 0 6px 6px 0; color: var(--muted); }
+    .chevron { border: none; background: none; cursor: pointer; color: var(--cp-grey); font-size: 14px; padding: 6px; line-height: 1; transition: transform var(--dur-fast) var(--ease-out); }
+    .cp-card.open .chevron { transform: rotate(180deg); }
 
     .state { text-align: center; color: var(--muted); padding: 56px 0; }
     .state.err { color: var(--ao-red); }
@@ -152,29 +224,29 @@
     main .ao-container > *:nth-child(4) { animation-delay: 150ms; }
     main .ao-container > *:nth-child(5) { animation-delay: 200ms; }
 
-    /* Kort: elevation + hover-løft */
-    .card { box-shadow: var(--shadow-sm); transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out); }
-    .card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-    .card.open { box-shadow: var(--shadow-md); }
-    .btn:active { transform: translateY(1px); }
+    /* Kort: hover-løft (skygge-værdier = admin-kortets) */
+    .cp-card { transition: box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out); }
+    .cp-card:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,.06), 0 18px 40px -12px rgba(20,22,30,.22); }
+    .cp-card.open { box-shadow: 0 2px 4px rgba(0,0,0,.06), 0 18px 40px -12px rgba(20,22,30,.22); }
+    .btn:active, .cp-btn:active { transform: translateY(1px); }
 
     /* Staggered kort-indflyvning (cappet ved 8. kort, så lange lister ikke venter) */
     @keyframes card-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-    .grid > .card { animation: card-in var(--dur-slow) var(--ease-out) backwards; }
-    .grid > .card:nth-child(2) { animation-delay: 60ms; }
-    .grid > .card:nth-child(3) { animation-delay: 120ms; }
-    .grid > .card:nth-child(4) { animation-delay: 180ms; }
-    .grid > .card:nth-child(5) { animation-delay: 240ms; }
-    .grid > .card:nth-child(6) { animation-delay: 300ms; }
-    .grid > .card:nth-child(7) { animation-delay: 360ms; }
-    .grid > .card:nth-child(8) { animation-delay: 420ms; }
-    .grid > .card:nth-child(n+9) { animation-delay: 460ms; }
+    .grid > .cp-card { animation: card-in var(--dur-slow) var(--ease-out) backwards; }
+    .grid > .cp-card:nth-child(2) { animation-delay: 60ms; }
+    .grid > .cp-card:nth-child(3) { animation-delay: 120ms; }
+    .grid > .cp-card:nth-child(4) { animation-delay: 180ms; }
+    .grid > .cp-card:nth-child(5) { animation-delay: 240ms; }
+    .grid > .cp-card:nth-child(6) { animation-delay: 300ms; }
+    .grid > .cp-card:nth-child(7) { animation-delay: 360ms; }
+    .grid > .cp-card:nth-child(8) { animation-delay: 420ms; }
+    .grid > .cp-card:nth-child(n+9) { animation-delay: 460ms; }
 
     /* Accordion: glidende åbning (display-togglet i JS starter animationen forfra) */
-    .card.open .details { overflow: hidden; animation: details-in var(--dur-slow) var(--ease-out); }
+    .cp-card.open .cp-card__details { overflow: hidden; animation: details-in var(--dur-slow) var(--ease-out); }
     @keyframes details-in {
       from { opacity: 0; max-height: 0; margin-top: 0; padding-top: 0; }
-      to { opacity: 1; max-height: 720px; margin-top: 18px; padding-top: 16px; }
+      to { opacity: 1; max-height: 720px; margin-top: 12px; padding-top: 12px; }
     }
 
     /* Modaler: fade + scale-entrance */
@@ -184,14 +256,13 @@
     .modal-bg.show { animation: fade-in var(--dur-base) var(--ease-out); }
     .modal-bg.show .modal { animation: modal-in var(--dur-base) var(--ease-out); }
 
-    /* Live-puls (rgba = --live #4c7f14) */
+    /* Live-puls på LIVE-badget (rgba = admin-grøn #16A34A) */
     @keyframes live-pulse {
-      0% { box-shadow: 0 0 0 0 rgba(76, 127, 20, 0.35); }
-      70% { box-shadow: 0 0 0 6px rgba(76, 127, 20, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(76, 127, 20, 0); }
+      0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.35); }
+      70% { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
     }
-    .chip.live .d { animation: live-pulse 2.4s var(--ease-out) infinite; }
-    .badge-live::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--live); margin-right: 6px; vertical-align: 1px; animation: live-pulse 2.4s var(--ease-out) infinite; }
+    .cp-live::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--cp-live); margin-right: 6px; vertical-align: 1px; animation: live-pulse 2.4s var(--ease-out) infinite; }
 
     /* Loading-state */
     @keyframes pulse-soft { 50% { opacity: 0.45; } }
@@ -203,7 +274,7 @@
     .modal input:focus { box-shadow: 0 0 0 3px rgba(230, 0, 3, 0.10); }
     .chevron { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border-radius: var(--radius-pill); transition: transform var(--dur-base) var(--ease-out), color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out); }
     .chevron:hover { color: var(--ink); background-color: var(--paper-2); }
-    .card.open .chevron { color: var(--ink); }
+    .cp-card.open .chevron { color: var(--ink); }
     .chevron svg { display: block; }
 
     @media (prefers-reduced-motion: reduce) {
@@ -298,81 +369,102 @@
   <script>
     var API = "https://aiao-control-plane-production.up.railway.app";
     var GITHUB_ORG = "AIAODEV";
-    var STAK = ["Next.js", "FastAPI", "Supabase", "Claude Code"];
+    // Stak-piller (admin-PocCards STAK 1:1): farve = lag (frontend grå · backend teal · DB grøn · værktøj orange).
+    var STAK = [["Next.js","next"],["TypeScript","ts"],["CSS","ts"],["FastAPI","fast"],["Python","fast"],["PostgreSQL","pg"],["Claude Code","claude"]];
+    // Lucide-ikoner (samme sæt som admin bruger via lucide-react) inlinet som SVG — ingen afhængigheder.
+    var ICONS = {
+      ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
+      code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>'
+    };
     var grid = document.getElementById("grid");
     function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
     function cap(s){ s=String(s==null?"":s); return s?s.charAt(0).toUpperCase()+s.slice(1):s; }  // "doer" → "Doer" (kun visning)
     function handleOf(r){ if(!r.ejer_handle) return ""; return r.ejer_handle.charAt(0)==="@"?r.ejer_handle:"@"+r.ejer_handle; }
     function host(r){ if(r.live_url){try{return new URL(r.live_url).host;}catch(e){}} return r.poc+".aiao.dev"; }
     function fmtDate(iso){ if(!iso) return "-"; var d=new Date(iso); if(isNaN(d.getTime())) return "-"; try{return d.toLocaleDateString("da-DK",{day:"numeric",month:"long",year:"numeric"});}catch(e){return iso;} }
-    function chip(on,label){ return '<span class="chip'+(on?" on":"")+'"><span class="d"></span>'+esc(label)+"</span>"; }
-    function field(label,val,span){ return '<div class="f'+(span?" span":"")+'"><div class="f-label">'+esc(label)+'</div><div class="f-val">'+val+"</div></div>"; }
+    function provchip(on,label){ return '<span class="cp-provchip cp-provchip--'+(on?"on":"off")+'">'+esc(label)+" "+(on?"✓":"✗")+"</span>"; }
+    function field(label,val,span){ return '<div class="f'+(span?" span":"")+'"><div class="cp-label">'+esc(label)+'</div><div class="cp-fval">'+val+"</div></div>"; }
+    function initialsOf(r){
+      if(r.ejer_navn){ var p=r.ejer_navn.trim().split(/\s+/); var s=((p[0]?p[0].charAt(0):"")+(p[1]?p[1].charAt(0):"")).toUpperCase(); if(s) return s; }
+      if(r.ejer_handle){ var c=r.ejer_handle.replace(/^@/,"").charAt(0).toUpperCase(); if(c) return c; }
+      return "?";
+    }
+    // Én dokumentation-række (admin-docpanelets layout): kategori + titel + tidsstempel til venstre,
+    // faste ÅBN- (84px) og handlings-kolonner (168px) til højre, så alt aligner på tværs af rækker.
+    function row2(cat,titleTxt,tsHtml,openHtml,actionHtml,extraHtml){
+      return '<div class="cp-docrow2">'+
+        '<div class="cp-docrow2__info"><div class="cp-label">'+esc(cat)+'</div>'+
+        '<div class="cp-docrow2__title">'+esc(titleTxt)+"</div>"+tsHtml+"</div>"+
+        '<div class="cp-docrow2__open">'+openHtml+"</div>"+
+        '<div class="cp-docrow2__action">'+actionHtml+"</div>"+
+        (extraHtml||"")+
+      "</div>";
+    }
+    function ts2(txt){ return txt?'<div class="cp-docrow2__ts">'+esc(txt)+"</div>":""; }
+    function tsMissing2(txt){ return '<div class="cp-docrow2__ts cp-docrow2__ts--missing">'+esc(txt)+"</div>"; }
     function card(r){
       var handle=handleOf(r);
       var title=r.slug||r.poc;  // titel = POC'ens offentlige adresse-navn (slug); legacy: slug = pocN
       var vscodeUrl="vscode://vscode.git/clone?url=https://github.com/"+GITHUB_ORG+"/"+encodeURIComponent(r.poc)+".git";
-      var dots="";
-      if(r.is_live) dots+='<span class="chip live"><span class="d"></span>Live</span>';
-      if(r.stage==="test") dots+='<span class="chip on"><span class="d"></span>Test</span>';
-      else if(r.stage==="drift") dots+='<span class="chip on"><span class="d"></span>Drift</span>';
-      dots+=chip(r.has_github,"GitHub")+chip(r.has_vercel,"Vercel")+chip(r.has_railway,"Railway")+chip(r.has_supabase,"Supabase");
+      // Provider-tjek-chips (admin-stil "GitHub ✓ …") bor i detaljerne; Live/TEST/DRIFT-badges i headeren.
+      var prov='<div class="cp-provrow">'+
+        provchip(r.has_github,"GitHub")+provchip(r.has_vercel,"Vercel")+
+        provchip(r.has_railway,"Railway")+provchip(r.has_supabase,"Supabase")+
+        provchip(r.is_live,"Live")+"</div>";
       var actions="";
-      if(r.live_url) actions+='<a class="btn green" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer">Åbn</a>';
-      actions+='<a class="btn" href="'+esc(vscodeUrl)+'">Åbn i VS Code</a>';
-      // Top-højre: grøn "Åbn test-miljø" når POC'en er på test (åbn-handling). "Anmod om test" er en
+      if(r.live_url) actions+='<a class="cp-btn cp-btn--live" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer">'+ICONS.ext+"ÅBN</a>";
+      // Top-højre: grøn "ÅBN TEST" når POC'en er på test (åbn-handling). "Anmod om test" er en
       // sjælden handling → den bor i detaljerne (promoteField), ikke i den altid-synlige top.
-      var promoteTop = (r.stage==="test")
-        ? '<a class="btn green" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer">Åbn test-miljø</a>'
-        : "";
-      // Drift-stadiet: grøn "Åbn drift" → <slug>.aiao.work (produktions-adressen). Spejler ÅBN DRIFT på
+      if(r.stage==="test")
+        actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer">'+ICONS.ext+"ÅBN TEST</a>";
+      // Drift-stadiet: grøn "ÅBN DRIFT" → <slug>.aiao.work (produktions-adressen). Spejler ÅBN DRIFT på
       // admin-PocCard; drift_url er en bar host (uden skema). Markér "(afventer DNS)" indtil cert'et er
       // udstedt, så et klik ikke rammer ERR_CERT_DATE_INVALID uden forklaring.
-      var driftTop = (r.stage==="drift" && r.drift_url)
-        ? '<a class="btn green" href="https://'+esc(r.drift_url)+'" target="_blank" rel="noopener noreferrer">Åbn drift'+(r.drift_dns_verified?"":" (afventer DNS)")+'</a>'
-        : "";
+      else if(r.stage==="drift" && r.drift_url)
+        actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.drift_url)+'" target="_blank" rel="noopener noreferrer">'+ICONS.ext+"ÅBN DRIFT"+(r.drift_dns_verified?"":" (afventer DNS)")+"</a>";
+      actions+='<a class="cp-btn cp-btn--ghost" href="'+esc(vscodeUrl)+'" title="Åbner VS Code og henter projektet forbundet — klar til at bygge">'+ICONS.code+"ÅBN I VS CODE</a>";
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
-      var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" . ")||"-";
-      var stakPills=STAK.map(function(s){return '<span class="pill">'+esc(s)+"</span>";}).join("");
+      var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" · ")||"-";
+      var stakPills=STAK.map(function(s){return '<span class="cp-pill cp-pill--'+s[1]+'">'+esc(s[0])+"</span>";}).join("");
       var rpe=encodeURIComponent(r.poc);
-      // Resumé (AI) + generér-knap (ejer-login, som doc-knapperne) → POST /pocs/{poc}/ai-resume.
-      var resume=(r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resumé afventer ...</span>')+
-        '<div class="docrow" style="margin-top:8px">'+
-        '<button class="btn'+(r.ai_resume?"":" green")+'" data-act="resume" data-poc="'+esc(r.poc)+'">'+(r.ai_resume?"Gengenerér resumé":"Generér resumé")+"</button>"+
-        '<div class="docmsg" id="docmsg-'+rpe+'-resume"></div>'+
-        "</div>";
       var pe=encodeURIComponent(r.poc);
-      // Dokumentation, per dokument på én linje: findes det → grøn "Åbn …" (alle med AIAO-konto kan
-      // læse; frisk fra repoet) + tidsstempel + hvid "Gengenerér …"; findes det ikke → grøn "Lav …"
-      // (lokke-CTA). Server håndhæver ejer/admin på generering.
-      function docRow(kind,label,ts){
+      // Resumé-TEKSTEN bor i meta-gridden; generér-knappen bor i Dokumentation-panelet (som admin).
+      var resumeVal=r.ai_resume?"<span>"+esc(r.ai_resume)+"</span>":'<span class="ital">Resumé afventer …</span>';
+      // Dokumentation-panel (admin-docpanelet 1:1): pr. dokument én række — findes det → grøn ÅBN
+      // (alle kan læse; frisk fra repoet) + tidsstempel + hvid GENGENERÉR; findes det ikke → grøn
+      // LAV …-CTA. Server håndhæver ejer/admin på generering; Snyk har bredere gate (admin/godkender).
+      function docRow2(cat,titleTxt,kind,label,ts){
         var poc=esc(r.poc);
         if(ts){
-          return '<div class="docrow">'+
-            '<button class="btn green" data-view="'+kind+'" data-poc="'+poc+'">Åbn '+label+'</button>'+
-            '<span class="f-sub">senest '+esc(fmtDate(ts))+'</span>'+
-            '<button class="btn" data-act="'+kind+'" data-poc="'+poc+'">Gengenerér '+label+'</button>'+
-          "</div>";
+          return row2(cat,titleTxt,ts2("senest "+fmtDate(ts)),
+            '<button class="cp-btn cp-btn--live" data-view="'+kind+'" data-poc="'+poc+'">'+ICONS.ext+"ÅBN</button>",
+            '<button class="cp-btn cp-btn--ghost" data-act="'+kind+'" data-poc="'+poc+'">GENGENERÉR</button>');
         }
-        return '<div class="docrow"><button class="btn green" data-act="'+kind+'" data-poc="'+poc+'">Lav '+label+"</button></div>";
+        return row2(cat,titleTxt,tsMissing2("endnu ikke genereret"),"",
+          '<button class="cp-btn cp-btn--live" data-act="'+kind+'" data-poc="'+poc+'">LAV '+label+"</button>");
       }
-      // Snyk-rapport: "Åbn" (når rapporten findes) + "Kør Snyk-scan" (owner-login, samme flow som docs).
-      // Serveren håndhæver rolle-gaten (admin/godkender = alle POC'er, bygger = kun egne; ellers 403).
-      function snykRow(ts){
+      function snykRow2(ts){
         var poc=esc(r.poc);
         if(ts){
-          return '<div class="docrow">'+
-            '<button class="btn green" data-view="snyk" data-poc="'+poc+'">Åbn Snyk-rapport</button>'+
-            '<span class="f-sub">senest '+esc(fmtDate(ts))+'</span>'+
-            '<button class="btn" data-act="snyk" data-poc="'+poc+'">Kør Snyk-scan igen</button>'+
-          "</div>";
+          return row2("Sikkerhed","Snyk-rapport",ts2("senest "+fmtDate(ts)),
+            '<button class="cp-btn cp-btn--live" data-view="snyk" data-poc="'+poc+'">'+ICONS.ext+"ÅBN</button>",
+            '<button class="cp-btn cp-btn--ghost" data-act="snyk" data-poc="'+poc+'">KØR IGEN</button>');
         }
-        return '<div class="docrow"><button class="btn green" data-act="snyk" data-poc="'+poc+'">Kør Snyk-scan</button></div>';
+        return row2("Sikkerhed","Snyk-rapport",tsMissing2("endnu ikke kørt"),"",
+          '<button class="cp-btn cp-btn--live" data-act="snyk" data-poc="'+poc+'">KØR SNYK-SCAN</button>');
       }
-      var docsField=field("Dokumentation",
-        docRow("brugerguide","brugerguide",r.brugerguide_opdateret)+
-        docRow("loesningsbeskrivelse","løsningsbeskrivelse",r.loesningsbeskrivelse_opdateret)+
-        snykRow(r.snyk_opdateret)+
-        '<div class="docmsg" id="docmsg-'+pe+'"></div>', true);
+      var resumeRow=row2("Resumé (AI)","Resumé",
+        r.ai_resume?ts2("genereret"):tsMissing2("endnu ikke genereret"),"",
+        '<button class="cp-btn cp-btn--'+(r.ai_resume?"ghost":"live")+'" data-act="resume" data-poc="'+esc(r.poc)+'">'+(r.ai_resume?"GENGENERÉR RESUMÉ":"GENERÉR RESUMÉ")+"</button>",
+        '<div class="docmsg" id="docmsg-'+rpe+'-resume" style="flex-basis:100%;min-height:0;margin-top:0"></div>');
+      var docsPanel='<div class="cp-docpanel">'+
+        '<div class="cp-docpanel__title">Dokumentation</div>'+
+        resumeRow+
+        docRow2("Brugerguide","Brugerguide","brugerguide","BRUGERGUIDE",r.brugerguide_opdateret)+
+        docRow2("Løsningsbeskrivelse","Løsningsbeskrivelse","loesningsbeskrivelse","LØSNINGSBESKRIVELSE",r.loesningsbeskrivelse_opdateret)+
+        snykRow2(r.snyk_opdateret)+
+        '<div class="docmsg" id="docmsg-'+pe+'" style="min-height:0;margin-top:0"></div>'+
+      "</div>";
       // "Anmod om test" (rød) bor i detaljerne — kun poc-stadiet, ejer/admin (server håndhæver). Sjælden
       // handling, derfor ikke i den altid-synlige top. promomsg-kvitteringen sidder ved siden af knappen.
       // Gate: en POC må først sendes til test når alle fire artefakter er genereret (resumé + brugerguide
@@ -382,9 +474,9 @@
         [r.loesningsbeskrivelse_opdateret,"løsningsbeskrivelse"],[r.snyk_opdateret,"Snyk-rapport"]]
         .filter(function(x){return !x[0];}).map(function(x){return x[1];});
       var promoteInner = promoMissing.length===0
-        ? '<button class="btn primary" data-promote="'+esc(r.poc)+'">Anmod om test</button>'
-        : '<button class="btn primary" disabled style="opacity:.5;cursor:not-allowed" '+
-          'title="Generér resumé, brugerguide, løsningsbeskrivelse og Snyk-rapport først">Anmod om test</button>'+
+        ? '<button class="cp-btn cp-btn--primary" data-promote="'+esc(r.poc)+'">ANMOD OM TEST</button>'
+        : '<button class="cp-btn cp-btn--primary" disabled style="opacity:.5;cursor:not-allowed" '+
+          'title="Generér resumé, brugerguide, løsningsbeskrivelse og Snyk-rapport først">ANMOD OM TEST</button>'+
           '<div class="f-sub" style="margin-top:6px">Kan først sendes til test når disse er genereret (knapperne ovenfor): '+
           esc(promoMissing.join(", "))+'.</div>';
       var promoteField = (!r.stage||r.stage==="poc")
@@ -394,38 +486,39 @@
       // Forfremmelses-log: nested fold-ud (lukket by default) — lazy-henter GET /public/promotions/{poc}
       // først når den åbnes, så vi ikke fyrer et fetch pr. kort ved sideload.
       var promoLogField = field("Forfremmelses-log",
-        '<button class="btn" data-promolog="'+esc(r.poc)+'">▸ Forfremmelses-log</button>'+
+        '<button class="cp-btn cp-btn--ghost" data-promolog="'+esc(r.poc)+'">▸ Forfremmelses-log</button>'+
         '<div class="promolog" id="promolog-'+pe+'" style="display:none"></div>', true);
       // Schema-navnet (fx "Schema poc50") — POC'ens Supabase-schema i det delte projekt. Vist som
       // mono-chip; == pocN (allerede offentligt), så intet følsomt eksponeres.
       var schemaVal=r.supabase_schema
         ? '<span style="font-family:var(--font-mono)">'+esc(r.supabase_schema)+"</span>"
         : "-";
-      var details=
-        field("Ejer","<div>"+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
+      // Meta-grid (admin-gridden): Ejer · Stak · Formål (fuld bredde) · Oprettet · Schema · Resumé.
+      var metaGrid='<div class="cp-grid">'+
+        field("Ejer",'<div style="font-weight:700">'+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
         field("Stak",stakPills)+
-        field("Schema",schemaVal)+
         field("Formål",esc(r.formaal||"-"),true)+
         field("Oprettet",esc(fmtDate(r.oprettet)))+
-        field("Resumé (AI)",resume,true)+
-        docsField+
-        promoteField+
-        promoLogField;
-      return '<section class="card'+(r.is_live?"":" inactive")+'">'+
-        '<div class="card-top">'+
-          '<div class="titleblock">'+
-            '<div class="name">'+esc(cap(title))+(handle?' <span class="handle">. '+esc(handle)+"</span>":"")+"</div>"+
-            (r.formaal?'<div class="name" style="font-weight:500">'+esc(r.formaal)+"</div>":"")+
-            '<div class="sub">'+esc(host(r))+"</div>"+
+        field("Schema",schemaVal)+
+        field("Resumé (AI)",resumeVal,true)+
+      "</div>";
+      var details=prov+metaGrid+docsPanel+promoteField+promoLogField;
+      var stageBadge=(r.stage==="test")?'<span class="cp-pill">TEST</span>'
+        :(r.stage==="drift")?'<span class="cp-pill">DRIFT</span>':"";
+      return '<section class="cp-card'+(r.is_live?"":" cp-card--inactive")+'">'+
+        '<div class="cp-card__top">'+
+          '<span class="cp-avatar'+(r.is_live?"":" cp-avatar--inactive")+'">'+esc(initialsOf(r))+"</span>"+
+          '<div class="cp-card__title">'+
+            '<div class="cp-card__name">'+esc(cap(title))+(handle?' <span class="cp-meta">· '+esc(handle)+"</span>":"")+"</div>"+
+            '<div class="cp-card__purpose">'+(r.formaal?esc(r.formaal):'<span class="cp-meta" style="font-style:italic">(intet formål endnu)</span>')+"</div>"+
+            '<div class="cp-meta cp-card__host">'+esc(host(r))+"</div>"+
           "</div>"+
-          (r.is_live?'<span class="badge-live">Live</span>':"")+
+          (r.is_live?'<span class="cp-live">LIVE</span>':"")+
+          stageBadge+
           actions+
-          promoteTop+
-          driftTop+
           '<button class="chevron" aria-label="Vis detaljer"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.25 6 7.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
         "</div>"+
-        '<div class="dots">'+dots+"</div>"+
-        '<div class="details">'+details+"</div>"+
+        '<div class="cp-card__details">'+details+"</div>"+
       "</section>";
     }
     function render(list){
@@ -503,7 +596,7 @@
       var plog=e.target.closest("[data-promolog]");
       if(plog){ e.stopPropagation(); togglePromoLog(plog); return; }
       if(e.target.closest("a")) return;
-      var c=e.target.closest(".card"); if(c) c.classList.toggle("open");
+      var c=e.target.closest(".cp-card"); if(c) c.classList.toggle("open");
     });
     fetch(API+"/public/repos")
       .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
@@ -554,10 +647,10 @@
           if(!d) return;
           if(isResume){
             say("ok","✓ Resumé opdateret — genindlæs siden for at se det.");
-            if(btn) btn.textContent="Gengenerér resumé";
+            if(btn) btn.textContent="GENGENERÉR RESUMÉ";
           } else if(d.ok){
-            say("ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <button class=\"btn\" data-view=\""+esc(kind)+"\" data-poc=\""+esc(poc)+"\">Åbn</button>");
-            if(btn) btn.textContent=(kind==="snyk"?"Kør Snyk-scan igen":"Gengenerér "+(LABEL[kind]||"dokument"));
+            say("ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <button class=\"cp-btn cp-btn--ghost\" data-view=\""+esc(kind)+"\" data-poc=\""+esc(poc)+"\">Åbn</button>");
+            if(btn) btn.textContent=(kind==="snyk"?"KØR IGEN":"GENGENERÉR");
           }
         })
         .catch(function(e){ say("err",esc(e&&e.message?e.message:"Ukendt fejl")); })
