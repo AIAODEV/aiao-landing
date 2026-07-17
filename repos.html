@@ -660,14 +660,19 @@
         })
         .then(function(d){
           if(!d) return;
+          // Efter første generering er handlingen en "gen-generér" → hvid ghost-knap (som admin),
+          // ikke den grønne LAV/KØR-CTA den startede som.
+          function toGhost(){ if(btn){ btn.classList.remove("cp-btn--live"); btn.classList.add("cp-btn--ghost"); } }
           if(isResume){
             succeeded=true;
             say("ok","✓ Resumé opdateret — genindlæs siden for at se det.");
             if(btn) btn.textContent="GENGENERÉR RESUMÉ";
+            toGhost();
           } else if(d.ok){
             succeeded=true;
             say("ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>.");
             if(btn) btn.textContent=(kind==="snyk"?"KØR IGEN":"GENGENERÉR");
+            toGhost();
             // Rækken opgraderes til "findes"-tilstand: grøn ÅBN i den faste kolonne + frisk tidsstempel.
             if(openCell) openCell.innerHTML='<button class="cp-btn cp-btn--live" data-view="'+esc(kind)+'" data-poc="'+esc(poc)+'">'+ICONS.ext+"ÅBN</button>";
             if(tsCell){ tsCell.textContent="netop genereret"; tsCell.classList.remove("cp-docrow2__ts--missing"); }
