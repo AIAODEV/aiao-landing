@@ -183,8 +183,9 @@
     .modal h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 19px; font-weight: 900; letter-spacing: -0.02em; }
     .modal p { margin: 0 0 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .modal label { display: block; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 12px 0 5px; }
-    .modal input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 14px; }
-    .modal input:focus { outline: none; border-color: var(--ao-red); }
+    .modal input, .modal textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-md); font-family: var(--font-mono); font-size: 14px; }
+    .modal input:focus, .modal textarea:focus { outline: none; border-color: var(--ao-red); }
+    .modal textarea { resize: vertical; min-height: 72px; box-sizing: border-box; }
     .modal .row { display: flex; gap: 8px; margin-top: 20px; }
     .modal .m-err { color: var(--ao-red); font-size: 13px; margin-top: 12px; min-height: 1em; }
 
@@ -273,8 +274,8 @@
     .state.err { animation: none; }
 
     /* Småting: input-focus-ring + blødere chevron */
-    .modal input { transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
-    .modal input:focus { box-shadow: 0 0 0 3px rgba(230, 0, 3, 0.10); }
+    .modal input, .modal textarea { transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out); }
+    .modal input:focus, .modal textarea:focus { box-shadow: 0 0 0 3px rgba(230, 0, 3, 0.10); }
     .chevron { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border-radius: var(--radius-pill); transition: transform var(--dur-base) var(--ease-out), color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out); }
     .chevron:hover { color: var(--ink); background-color: var(--paper-2); }
     .cp-card.open .chevron { color: var(--ink); }
@@ -361,6 +362,10 @@
     <div class="modal">
       <h3>Bekræft anmodning om test</h3>
       <div id="promo-body"></div>
+      <!-- Uden for promo-body: overlever en 409-genbekræftelse (main rykket → body re-rendres). -->
+      <div style="margin:12px 0 2px;font-weight:700;">Hjælp testeren godt i gang</div>
+      <div class="f-sub" style="margin:0 0 6px;">Skriv hvad godkenderen skal bruge for at kunne teste appen — fx test-login, hvor man starter, særlige forhold. Valgfrit; ses kun af godkendere.</div>
+      <textarea id="promo-kommentar" rows="3" maxlength="2000" placeholder="Fx: Log ind med test-bruger@… / adgangskode … — start på forsiden."></textarea>
       <div class="m-err" id="promo-err"></div>
       <div class="row">
         <button class="btn primary" id="promo-go">Bekræft</button>
@@ -722,11 +727,13 @@
     var promoBg=document.getElementById("promoBg");
     var promoBody=document.getElementById("promo-body"), promoErr=document.getElementById("promo-err");
     var promoGo=document.getElementById("promo-go"), promoCancel=document.getElementById("promo-cancel");
+    var promoKommentar=document.getElementById("promo-kommentar");
     var promoState=null; // { poc, btn, expectedSha }
 
     function showPromoteConfirm(poc,commit,btn){
       promoState={ poc:poc, btn:btn, expectedSha:commit&&commit.sha };
       promoErr.textContent="";
+      promoKommentar.value="";
       promoBody.innerHTML=commitSummary(commit);
       promoGo.disabled=false;
       promoBg.classList.add("show");
@@ -746,7 +753,7 @@
       fetch(API+"/pocs/"+encodeURIComponent(poc)+"/promote",{
         method:"POST",
         headers:{ Authorization:"Bearer "+session, "Content-Type":"application/json" },
-        body:JSON.stringify({ expected_sha:expectedSha })
+        body:JSON.stringify({ expected_sha:expectedSha, kommentar:(promoKommentar.value||"").trim()||null })
       })
         .then(function(r){
           if(r.status===401){ session=null; pending={poc:poc,promote:true}; closePromo(); promoMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
