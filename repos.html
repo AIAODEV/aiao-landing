@@ -108,6 +108,9 @@
     .cp-btn--primary { background: var(--cp-grad-accent); color: #fff; border-color: var(--cp-accent); box-shadow: var(--cp-shadow-accent); }
     .cp-btn--primary:hover { background: var(--cp-grad-accent-hover); border-color: var(--cp-accent-hover); }
     .cp-btn:disabled { opacity: .55; cursor: default; }
+    /* "Arbejder"-tilstand: roterende pil mens et dokument genereres (ÅBN-pladsholder + handlingsknap). */
+    @keyframes cp-spin { to { transform: rotate(360deg); } }
+    .cp-btn--wait svg { animation: cp-spin 1s linear infinite; }
 
     .cp-pill { display: inline-block; font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; margin: 0 6px 4px 0; border-radius: var(--cp-radius-sm); border: 1px solid var(--cp-line); color: var(--cp-grey); }
     .cp-pill--next   { background: var(--cp-pill-next-bg);   color: var(--cp-pill-next-fg);   border-color: var(--cp-pill-next-line); }
@@ -374,7 +377,8 @@
     // Lucide-ikoner (samme sæt som admin bruger via lucide-react) inlinet som SVG — ingen afhængigheder.
     var ICONS = {
       ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
-      code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>'
+      code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+      spin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>'
     };
     var grid = document.getElementById("grid");
     function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
@@ -625,11 +629,22 @@
       openLogin();
     }
     function runDoc(poc,kind,btn){
-      if(btn) btn.disabled=true;
       // Resumé har eget endpoint (/ai-resume) + egen besked-boks; docs/snyk går til /docs/{kind}.
       var isResume=(kind==="resume");
       var url=isResume ? API+"/pocs/"+encodeURIComponent(poc)+"/ai-resume"
                        : API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+kind;
+      // "Arbejder"-tilstand (spejler admin-PocCard): snurre-ikon på handlingsknappen + en
+      // pladsholder-knap med roterende pil i ÅBN-kolonnen ("her lander Åbn"), så ingen klikker
+      // igen og igen. Ved succes erstattes pladsholderen af den ægte grønne ÅBN; ved fejl ryddes den.
+      var row=(btn&&btn.closest)?btn.closest(".cp-docrow2"):null;
+      var openCell=row?row.querySelector(".cp-docrow2__open"):null;
+      var tsCell=row?row.querySelector(".cp-docrow2__ts"):null;
+      var prevBtnHtml=btn?btn.innerHTML:null;
+      var putWait=!!(openCell&&!isResume&&openCell.innerHTML.replace(/\s/g,"")==="");
+      var succeeded=false;
+      if(btn){ btn.disabled=true; btn.classList.add("cp-btn--wait");
+        btn.innerHTML=ICONS.spin+" "+(kind==="snyk"?"SCANNER …":"GENERERER …"); }
+      if(putWait) openCell.innerHTML='<button class="cp-btn cp-btn--ghost cp-btn--wait" disabled title="Genereres — Åbn-knappen kommer her">'+ICONS.spin+"</button>";
       function say(cls,html){
         if(isResume){ var el=document.getElementById("docmsg-"+encodeURIComponent(poc)+"-resume");
           if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
@@ -646,15 +661,24 @@
         .then(function(d){
           if(!d) return;
           if(isResume){
+            succeeded=true;
             say("ok","✓ Resumé opdateret — genindlæs siden for at se det.");
             if(btn) btn.textContent="GENGENERÉR RESUMÉ";
           } else if(d.ok){
-            say("ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>. <button class=\"cp-btn cp-btn--ghost\" data-view=\""+esc(kind)+"\" data-poc=\""+esc(poc)+"\">Åbn</button>");
+            succeeded=true;
+            say("ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>.");
             if(btn) btn.textContent=(kind==="snyk"?"KØR IGEN":"GENGENERÉR");
+            // Rækken opgraderes til "findes"-tilstand: grøn ÅBN i den faste kolonne + frisk tidsstempel.
+            if(openCell) openCell.innerHTML='<button class="cp-btn cp-btn--live" data-view="'+esc(kind)+'" data-poc="'+esc(poc)+'">'+ICONS.ext+"ÅBN</button>";
+            if(tsCell){ tsCell.textContent="netop genereret"; tsCell.classList.remove("cp-docrow2__ts--missing"); }
           }
         })
         .catch(function(e){ say("err",esc(e&&e.message?e.message:"Ukendt fejl")); })
-        .finally(function(){ if(btn) btn.disabled=false; });
+        .finally(function(){
+          if(btn){ btn.disabled=false; btn.classList.remove("cp-btn--wait");
+            if(!succeeded&&prevBtnHtml!=null) btn.innerHTML=prevBtnHtml; }
+          if(!succeeded&&putWait) openCell.innerHTML="";
+        });
     }
 
     // ── Ejer-handling: anmod om forfremmelse poc→test (POST /pocs/{poc}/promote). Samme login/
@@ -848,7 +872,7 @@
           body:JSON.stringify({ email:email, password:pw })
         });
       }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
-        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; if(p.promote){ startPromoteFlow(p.poc); } else { runDoc(p.poc,p.kind); } } })
+        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; if(p.promote){ startPromoteFlow(p.poc); } else { runDoc(p.poc,p.kind, document.querySelector('[data-act="'+p.kind+'"][data-poc="'+p.poc+'"]')); } } })
         .catch(function(e){ if(e&&e.message&&e.message!=="no-config") liErr.textContent=e.message; });
     }
     document.getElementById("li-go").addEventListener("click",doLogin);
