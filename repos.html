@@ -385,6 +385,15 @@
       code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
       spin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>'
     };
+    // Hjælpetekster (title-tooltips) — SAMME tekster som admin-PocCard (sync-regel i control-planens
+    // CONSTRAINTS + spec 2026-07-20-knap-hjaelpetekster-design.md). Bruges både ved kort-render og
+    // når en række opgraderes efter en generering.
+    var HJAELP = {
+      brugerguide:{aabn:"Viser brugerguiden — hentes frisk fra projektet",igen:"Skriver brugerguiden igen ud fra den nyeste kode",lav:"AI skriver en brugerguide til slutbrugere og gemmer den i projektet"},
+      loesningsbeskrivelse:{aabn:"Viser løsningsbeskrivelsen — hentes frisk fra projektet",igen:"Skriver løsningsbeskrivelsen igen ud fra den nyeste kode",lav:"AI skriver en løsningsbeskrivelse til interessenter og gemmer den i projektet"},
+      snyk:{aabn:"Viser sikkerhedsrapporten — hentes frisk fra projektet",igen:"Scanner koden for sikkerhedshuller — rapporten gemmes i projektet",lav:"Scanner koden for sikkerhedshuller — rapporten gemmes i projektet"},
+      resume:"AI læser projektet og skriver et kort resumé — tager under et minut"
+    };
     var grid = document.getElementById("grid");
     function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
     function cap(s){ s=String(s==null?"":s); return s?s.charAt(0).toUpperCase()+s.slice(1):s; }  // "doer" → "Doer" (kun visning)
@@ -421,16 +430,16 @@
         provchip(r.has_railway,"Railway")+provchip(r.has_supabase,"Supabase")+
         provchip(r.is_live,"Live")+"</div>";
       var actions="";
-      if(r.live_url) actions+='<a class="cp-btn cp-btn--live" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer">'+ICONS.ext+"ÅBN</a>";
+      if(r.live_url) actions+='<a class="cp-btn cp-btn--live" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer" title="Åbner den kørende app i en ny fane">'+ICONS.ext+"ÅBN</a>";
       // Top-højre: grøn "ÅBN TEST" når POC'en er på test (åbn-handling). "Anmod om test" er en
       // sjælden handling → den bor i detaljerne (promoteField), ikke i den altid-synlige top.
       if(r.stage==="test")
-        actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer">'+ICONS.ext+"ÅBN TEST</a>";
+        actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer" title="Åbner test-udgaven (den frosne version til godkendelse) i en ny fane">'+ICONS.ext+"ÅBN TEST</a>";
       // Drift-stadiet: grøn "ÅBN DRIFT" → <slug>.aiao.work (produktions-adressen). Spejler ÅBN DRIFT på
       // admin-PocCard; drift_url er en bar host (uden skema). Markér "(afventer DNS)" indtil cert'et er
       // udstedt, så et klik ikke rammer ERR_CERT_DATE_INVALID uden forklaring.
       else if(r.stage==="drift" && r.drift_url)
-        actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.drift_url)+'" target="_blank" rel="noopener noreferrer">'+ICONS.ext+"ÅBN DRIFT"+(r.drift_dns_verified?"":" (afventer DNS)")+"</a>";
+        actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.drift_url)+'" target="_blank" rel="noopener noreferrer" title="Åbner produktions-udgaven i en ny fane">'+ICONS.ext+"ÅBN DRIFT"+(r.drift_dns_verified?"":" (afventer DNS)")+"</a>";
       actions+='<a class="cp-btn cp-btn--ghost" href="'+esc(vscodeUrl)+'" title="Åbner VS Code og henter projektet forbundet — klar til at bygge">'+ICONS.code+"ÅBN I VS CODE</a>";
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" · ")||"-";
@@ -446,25 +455,25 @@
         var poc=esc(r.poc);
         if(ts){
           return row2(cat,titleTxt,ts2("senest "+fmtDate(ts)),
-            '<button class="cp-btn cp-btn--live" data-view="'+kind+'" data-poc="'+poc+'">'+ICONS.ext+"ÅBN</button>",
-            '<button class="cp-btn cp-btn--ghost" data-act="'+kind+'" data-poc="'+poc+'">GENGENERÉR</button>');
+            '<button class="cp-btn cp-btn--live" data-view="'+kind+'" data-poc="'+poc+'" title="'+esc(HJAELP[kind].aabn)+'">'+ICONS.ext+"ÅBN</button>",
+            '<button class="cp-btn cp-btn--ghost" data-act="'+kind+'" data-poc="'+poc+'" title="'+esc(HJAELP[kind].igen)+'">GENGENERÉR</button>');
         }
         return row2(cat,titleTxt,tsMissing2("endnu ikke genereret"),"",
-          '<button class="cp-btn cp-btn--live" data-act="'+kind+'" data-poc="'+poc+'">LAV '+label+"</button>");
+          '<button class="cp-btn cp-btn--live" data-act="'+kind+'" data-poc="'+poc+'" title="'+esc(HJAELP[kind].lav)+'">LAV '+label+"</button>");
       }
       function snykRow2(ts){
         var poc=esc(r.poc);
         if(ts){
           return row2("Sikkerhed","Snyk-rapport",ts2("senest "+fmtDate(ts)),
-            '<button class="cp-btn cp-btn--live" data-view="snyk" data-poc="'+poc+'">'+ICONS.ext+"ÅBN</button>",
-            '<button class="cp-btn cp-btn--ghost" data-act="snyk" data-poc="'+poc+'">KØR IGEN</button>');
+            '<button class="cp-btn cp-btn--live" data-view="snyk" data-poc="'+poc+'" title="'+esc(HJAELP.snyk.aabn)+'">'+ICONS.ext+"ÅBN</button>",
+            '<button class="cp-btn cp-btn--ghost" data-act="snyk" data-poc="'+poc+'" title="'+esc(HJAELP.snyk.igen)+'">KØR IGEN</button>');
         }
         return row2("Sikkerhed","Snyk-rapport",tsMissing2("endnu ikke kørt"),"",
-          '<button class="cp-btn cp-btn--live" data-act="snyk" data-poc="'+poc+'">KØR SNYK-SCAN</button>');
+          '<button class="cp-btn cp-btn--live" data-act="snyk" data-poc="'+poc+'" title="'+esc(HJAELP.snyk.lav)+'">KØR SNYK-SCAN</button>');
       }
       var resumeRow=row2("Resumé (AI)","Resumé",
         r.ai_resume?ts2("genereret"):tsMissing2("endnu ikke genereret"),"",
-        '<button class="cp-btn cp-btn--'+(r.ai_resume?"ghost":"live")+'" data-act="resume" data-poc="'+esc(r.poc)+'">'+(r.ai_resume?"GENGENERÉR RESUMÉ":"GENERÉR RESUMÉ")+"</button>",
+        '<button class="cp-btn cp-btn--'+(r.ai_resume?"ghost":"live")+'" data-act="resume" data-poc="'+esc(r.poc)+'" title="'+esc(HJAELP.resume)+'">'+(r.ai_resume?"GENGENERÉR RESUMÉ":"GENERÉR RESUMÉ")+"</button>",
         '<div class="docmsg" id="docmsg-'+rpe+'-resume" style="flex-basis:100%;min-height:0;margin-top:0"></div>');
       var docsPanel='<div class="cp-docpanel">'+
         '<div class="cp-docpanel__title">Dokumentation</div>'+
@@ -483,7 +492,7 @@
         [r.loesningsbeskrivelse_opdateret,"løsningsbeskrivelse"],[r.snyk_opdateret,"Snyk-rapport"]]
         .filter(function(x){return !x[0];}).map(function(x){return x[1];});
       var promoteInner = promoMissing.length===0
-        ? '<button class="cp-btn cp-btn--primary" data-promote="'+esc(r.poc)+'">ANMOD OM TEST</button>'
+        ? '<button class="cp-btn cp-btn--primary" data-promote="'+esc(r.poc)+'" title="Sender POC\'en til en godkender, som kan sætte den i test-miljø">ANMOD OM TEST</button>'
         : '<button class="cp-btn cp-btn--primary" disabled style="opacity:.5;cursor:not-allowed" '+
           'title="Generér resumé, brugerguide, løsningsbeskrivelse og Snyk-rapport først">ANMOD OM TEST</button>'+
           '<div class="f-sub" style="margin-top:6px">Kan først sendes til test når disse er genereret (knapperne ovenfor): '+
@@ -495,7 +504,7 @@
       // Forfremmelses-log: nested fold-ud (lukket by default) — lazy-henter GET /public/promotions/{poc}
       // først når den åbnes, så vi ikke fyrer et fetch pr. kort ved sideload.
       var promoLogField = field("Forfremmelses-log",
-        '<button class="cp-btn cp-btn--ghost" data-promolog="'+esc(r.poc)+'">▸ Forfremmelses-log</button>'+
+        '<button class="cp-btn cp-btn--ghost" data-promolog="'+esc(r.poc)+'" title="Viser POC\'ens rejse (oprettet, sendt til test, godkendt …)">▸ Forfremmelses-log</button>'+
         '<div class="promolog" id="promolog-'+pe+'" style="display:none"></div>', true);
       // Schema-navnet (fx "Schema poc50") — POC'ens Supabase-schema i det delte projekt. Vist som
       // mono-chip; == pocN (allerede offentligt), så intet følsomt eksponeres.
@@ -525,7 +534,7 @@
           (r.is_live?'<span class="cp-live">LIVE</span>':"")+
           stageBadge+
           actions+
-          '<button class="chevron" aria-label="Vis detaljer"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.25 6 7.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
+          '<button class="chevron" aria-label="Vis detaljer" title="Vis detaljer"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.25 6 7.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
         "</div>"+
         '<div class="cp-card__details">'+details+"</div>"+
       "</section>";
@@ -605,7 +614,13 @@
       var plog=e.target.closest("[data-promolog]");
       if(plog){ e.stopPropagation(); togglePromoLog(plog); return; }
       if(e.target.closest("a")) return;
-      var c=e.target.closest(".cp-card"); if(c) c.classList.toggle("open");
+      var c=e.target.closest(".cp-card");
+      if(c){
+        c.classList.toggle("open");
+        // Hjælpeteksten på pilen følger tilstanden (som admin-PocCard).
+        var chev=c.querySelector(".chevron");
+        if(chev) chev.title=c.classList.contains("open")?"Skjul detaljer":"Vis detaljer";
+      }
     });
     fetch(API+"/public/repos")
       .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
@@ -676,10 +691,10 @@
           } else if(d.ok){
             succeeded=true;
             say("ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>.");
-            if(btn) btn.textContent=(kind==="snyk"?"KØR IGEN":"GENGENERÉR");
+            if(btn){ btn.textContent=(kind==="snyk"?"KØR IGEN":"GENGENERÉR"); if(HJAELP[kind]) btn.title=HJAELP[kind].igen; }
             toGhost();
             // Rækken opgraderes til "findes"-tilstand: grøn ÅBN i den faste kolonne + frisk tidsstempel.
-            if(openCell) openCell.innerHTML='<button class="cp-btn cp-btn--live" data-view="'+esc(kind)+'" data-poc="'+esc(poc)+'">'+ICONS.ext+"ÅBN</button>";
+            if(openCell) openCell.innerHTML='<button class="cp-btn cp-btn--live" data-view="'+esc(kind)+'" data-poc="'+esc(poc)+'" title="'+esc(HJAELP[kind]?HJAELP[kind].aabn:"")+'">'+ICONS.ext+"ÅBN</button>";
             if(tsCell){ tsCell.textContent="netop genereret"; tsCell.classList.remove("cp-docrow2__ts--missing"); }
           }
         })
