@@ -58,9 +58,26 @@
     .startnote { background: var(--paper-2); border: 1px solid var(--line); border-left: 3px solid var(--ao-red); border-radius: var(--radius-md); padding: 10px 14px; margin: 0 0 12px; font-size: 14px; line-height: 1.5; max-width: 92ch; }
     .startnote-label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ao-red); margin: 0 0 2px; }
 
-    /* Bot-vinduet: fylder al resterende højde; scroller kun internt. */
-    .bot-frame { border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--paper-2); display: flex; flex: 1 1 auto; min-height: 280px; }
+    /* Slank værktøjslinje over botten med "Fuld skærm"-knappen. */
+    .bot-toolbar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+    .fs-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.04em; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 6px 14px; cursor: pointer; transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); }
+    .fs-btn:hover { color: var(--ao-red); border-color: var(--muted); }
+
+    /* Bot-vinduet: fylder al resterende højde; scroller kun internt.
+       position:relative så luk-knappen kan ligge oven på under fuld skærm. */
+    .bot-frame { position: relative; border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--paper-2); display: flex; flex: 1 1 auto; min-height: 280px; }
     .bot-frame iframe { display: block; width: 100%; height: 100%; border: 0; flex: 1 1 auto; }
+
+    /* Luk-knap: skjult normalt, vises KUN når bot-vinduet er i fuld skærm.
+       (Separate regler pr. browser-præfiks — én ukendt selector ville ellers
+       ugyldiggøre hele gruppen.) Esc virker også. */
+    .fs-close { display: none; position: absolute; top: 14px; right: 14px; z-index: 10; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 13px; color: #fff; background: rgba(10, 10, 10, 0.72); border: 0; border-radius: var(--radius-pill); padding: 8px 16px; cursor: pointer; box-shadow: var(--shadow-md); }
+    .fs-close:hover { background: var(--ao-red); }
+    .bot-frame:fullscreen { border: 0; border-radius: 0; }
+    .bot-frame:-webkit-full-screen { border: 0; border-radius: 0; }
+    .bot-frame:fullscreen .fs-close { display: inline-flex; }
+    .bot-frame:-webkit-full-screen .fs-close { display: inline-flex; }
+
     .fallback { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
     .fallback a { color: var(--ink); text-decoration: underline; }
     .fallback a:hover { color: var(--ao-red); }
@@ -130,8 +147,12 @@
           Interviewet ender med en færdig byg-prompt. Når din POC er sat op i VS Code, indsætter du prompten som din <strong>første besked til Claude</strong> — så bygger I videre derfra.
         </div>
       </div>
+      <div class="bot-toolbar">
+        <button id="fsOpen" class="fs-btn" type="button" title="Åbn botten i fuld skærm">⤢ Fuld skærm</button>
+      </div>
       <div class="bot-frame">
-        <iframe src="https://poc37.aiao.dev" title="Interview-bot — start din POC" allow="microphone; clipboard-write" loading="lazy"></iframe>
+        <button id="fsClose" class="fs-close" type="button" title="Luk fuld skærm (Esc)">✕ Luk fuld skærm</button>
+        <iframe src="https://poc37.aiao.dev" title="Interview-bot — start din POC" allow="microphone; clipboard-write; fullscreen" allowfullscreen loading="lazy"></iframe>
       </div>
       <p class="fallback">Loader botten ikke her? <a href="https://poc37.aiao.dev" target="_blank" rel="noopener">Åbn interviewet i ny fane ↗</a></p>
     </div>
@@ -156,8 +177,25 @@
 
   <script>
     (function () {
-      var f = document.querySelector(".bot-frame iframe");
-      if (f) f.addEventListener("load", function () { f.parentNode.classList.add("loaded"); });
+      var frame = document.querySelector(".bot-frame");
+      var f = frame ? frame.querySelector("iframe") : null;
+      if (f) f.addEventListener("load", function () { frame.classList.add("loaded"); });
+
+      // Fuld skærm: fuldskærm HELE bot-vinduet (så luk-knappen ligger oven på),
+      // ikke kun iframen. Esc virker som browserens standard-udgang.
+      var openBtn = document.getElementById("fsOpen");
+      var closeBtn = document.getElementById("fsClose");
+      function enterFs() {
+        if (!frame) return;
+        var req = frame.requestFullscreen || frame.webkitRequestFullscreen;
+        if (req) { try { req.call(frame); } catch (e) {} }
+      }
+      function exitFs() {
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) { try { exit.call(document); } catch (e) {} }
+      }
+      if (openBtn) openBtn.addEventListener("click", enterFs);
+      if (closeBtn) closeBtn.addEventListener("click", exitFs);
     })();
   </script>
 </body>
