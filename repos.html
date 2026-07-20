@@ -391,7 +391,7 @@
     var HJAELP = {
       brugerguide:{aabn:"Viser brugerguiden — hentes frisk fra projektet",igen:"Skriver brugerguiden igen ud fra den nyeste kode",lav:"AI skriver en brugerguide til slutbrugere og gemmer den i projektet"},
       loesningsbeskrivelse:{aabn:"Viser løsningsbeskrivelsen — hentes frisk fra projektet",igen:"Skriver løsningsbeskrivelsen igen ud fra den nyeste kode",lav:"AI skriver en løsningsbeskrivelse til interessenter og gemmer den i projektet"},
-      snyk:{aabn:"Viser sikkerhedsrapporten — hentes frisk fra projektet",igen:"Scanner koden for sikkerhedshuller — rapporten gemmes i projektet",lav:"Scanner koden for sikkerhedshuller — rapporten gemmes i projektet"},
+      snyk:{aabn:"Viser sikkerhedsrapporten — hentes frisk fra projektet",igen:"Scanner koden for sikkerhedshuller — rapporten gemmes i projektet",lav:"Beder Snyk hente og scanne koden — rapporten gemmes i projektet (første gang tager det et par minutter)"},
       resume:"AI læser projektet og skriver et kort resumé — tager under et minut"
     };
     var grid = document.getElementById("grid");
@@ -469,7 +469,7 @@
             '<button class="cp-btn cp-btn--ghost" data-act="snyk" data-poc="'+poc+'" title="'+esc(HJAELP.snyk.igen)+'">KØR IGEN</button>');
         }
         return row2("Sikkerhed","Snyk-rapport",tsMissing2("endnu ikke kørt"),"",
-          '<button class="cp-btn cp-btn--live" data-act="snyk" data-poc="'+poc+'" title="'+esc(HJAELP.snyk.lav)+'">KØR SNYK-SCAN</button>');
+          '<button class="cp-btn cp-btn--live" data-act="snyk" data-poc="'+poc+'" title="'+esc(HJAELP.snyk.lav)+'">HENT SNYK-RAPPORT</button>');
       }
       var resumeRow=row2("Resumé (AI)","Resumé",
         r.ai_resume?ts2("genereret"):tsMissing2("endnu ikke genereret"),"",
@@ -648,7 +648,8 @@
       pending={poc:poc,kind:kind};
       openLogin();
     }
-    function runDoc(poc,kind,btn){
+    function runDoc(poc,kind,btn,attempt){
+      attempt=attempt||0;
       // Resumé har eget endpoint (/ai-resume) + egen besked-boks; docs/snyk går til /docs/{kind}.
       var isResume=(kind==="resume");
       var url=isResume ? API+"/pocs/"+encodeURIComponent(poc)+"/ai-resume"
@@ -659,9 +660,13 @@
       var row=(btn&&btn.closest)?btn.closest(".cp-docrow2"):null;
       var openCell=row?row.querySelector(".cp-docrow2__open"):null;
       var tsCell=row?row.querySelector(".cp-docrow2__ts"):null;
-      var prevBtnHtml=btn?btn.innerHTML:null;
-      var putWait=!!(openCell&&!isResume&&openCell.innerHTML.replace(/\s/g,"")==="");
-      var succeeded=false;
+      // Knappens oprindelige indhold gemmes på dataset ved FØRSTE forsøg — auto-genforsøg (Snyk)
+      // genkalder runDoc mens knappen viser spinneren, så innerHTML kan ikke bruges som kilde.
+      if(btn&&!btn.dataset.origHtml) btn.dataset.origHtml=btn.innerHTML;
+      var prevBtnHtml=btn?btn.dataset.origHtml:null;
+      // Genkend også vores egen vente-pladsholder fra et tidligere forsøg som "vores" kolonne.
+      var putWait=!!(openCell&&!isResume&&(openCell.innerHTML.replace(/\s/g,"")===""||openCell.querySelector(".cp-btn--wait")));
+      var succeeded=false, retrying=false;
       if(btn){ btn.disabled=true; btn.classList.add("cp-btn--wait");
         btn.innerHTML=ICONS.spin+" "+(kind==="snyk"?"SCANNER …":"GENERERER …"); }
       if(putWait) openCell.innerHTML='<button class="cp-btn cp-btn--ghost cp-btn--wait" disabled title="Genereres — Åbn-knappen kommer her">'+ICONS.spin+"</button>";
@@ -675,7 +680,12 @@
         .then(function(r){
           if(r.status===401){ session=null; pending={poc:poc,kind:kind}; say("err","Session udløbet — log ind igen."); openLogin(); return null; }
           if(r.status===403){ say("err","Kun POC'ens ejer eller en admin kan dette."); return null; }
-          if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
+          if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){
+            var err=new Error(j.detail||("Fejl ("+r.status+")"));
+            // Snyk-vent-409 bærer retry_s (sekunder) → auto-genforsøg i catch-grenen nedenfor.
+            err.retryS=(r.status===409&&j&&j.retry_s)?j.retry_s:null;
+            throw err;
+          });
           return r.json();
         })
         .then(function(d){
@@ -698,10 +708,24 @@
             if(tsCell){ tsCell.textContent="netop genereret"; tsCell.classList.remove("cp-docrow2__ts--missing"); }
           }
         })
-        .catch(function(e){ say("err",esc(e&&e.message?e.message:"Ukendt fejl")); })
+        .catch(function(e){
+          // Snyk-vent (repoet hentes/scannes i Snyk lige nu): prøv selv igen efter retry_s —
+          // brugeren skal ikke huske at klikke (spec 2026-07-20). Max 5 forsøg (~10 min).
+          if(kind==="snyk"&&e&&e.retryS&&attempt<4){
+            retrying=true;
+            var min=Math.max(1,Math.round(e.retryS/60));
+            say("",esc(e.message)+" Prøver igen automatisk om ca. "+min+" min (forsøg "+(attempt+2)+" af 5) — du kan roligt gå fra skærmen.");
+            setTimeout(function(){ runDoc(poc,kind,btn,attempt+1); },e.retryS*1000);
+            return;
+          }
+          if(kind==="snyk"&&e&&e.retryS){ say("err","Snyk blev ikke færdig inden for ca. 10 minutter — prøv igen om lidt."); return; }
+          say("err",esc(e&&e.message?e.message:"Ukendt fejl"));
+        })
         .finally(function(){
+          if(retrying) return;  // arbejdstilstanden består mens vi venter på næste forsøg
           if(btn){ btn.disabled=false; btn.classList.remove("cp-btn--wait");
-            if(!succeeded&&prevBtnHtml!=null) btn.innerHTML=prevBtnHtml; }
+            if(!succeeded&&prevBtnHtml!=null) btn.innerHTML=prevBtnHtml;
+            delete btn.dataset.origHtml; }
           if(!succeeded&&putWait) openCell.innerHTML="";
         });
     }
