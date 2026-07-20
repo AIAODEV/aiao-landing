@@ -37,9 +37,25 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 
 > **NB:** `start.html` ("Start din POC her") er hånd-skrevet som `repos.html`
 > (topbar/footer klonet derfra) og indlejrer interview-botten `poc37.aiao.dev`
-> i en iframe med `allow="microphone"` (påkrævet for tale). Fallback-link
-> "Åbn interviewet i ny fane" vises altid under iframen. Forudsætter at poc37
-> tillader framing fra `www.aiao.dev` (styres i poc37, ikke her).
+> i en iframe. Fallback-link "Åbn interviewet i ny fane" vises altid under iframen.
+> Forudsætter at poc37 tillader framing fra `www.aiao.dev` (styres i poc37, ikke her).
+>
+> **iframe `allow` (2026-07-20):** `allow="microphone; clipboard-write; fullscreen"` +
+> `allowfullscreen`. Hver rettighed SKAL delegeres til den cross-origin iframe, ellers
+> blokerer browseren funktionen indefra i poc37: `microphone` = tale, `clipboard-write`
+> = bottens "Kopiér"-knap (uden den fejlede den tavst), `fullscreen` = fuldskærm.
+>
+> **Layout (2026-07-20):** app-shell — `body` er en flex-kolonne på `100dvh`, `main` er
+> `flex:1` med `min-height:0` hele vejen, så bot-iframen fylder al resterende højde og
+> KUN scroller internt. Overskrift, en vejlednings-boks ("Når du har din prompt …"),
+> en `⤢ Fuld skærm`-knap og en kompakt footer er altid synlige uden at scrolle siden.
+> Fuldskærm-knappen fuldskærmer `.bot-frame`-*containeren* (ikke bare iframen), så en
+> `✕ Luk fuld skærm`-chip kan ligge oven på (vises kun i fuldskærm; Esc virker også).
+>
+> **Verifikation:** `www.aiao.dev` er Entra-gated → kan ikke curl-render-tjekkes. Render i
+> stedet lokalt headless (Edge `--headless=new --virtual-time-budget=2500 --screenshot`,
+> med iframe-src stubbet til en tall placeholder) for at bekræfte layout uden at scrolle.
+> Bekræft altid visuelt efter deploy (git-reversibelt).
 
 > React + Babel hentes fra unpkg-CDN ved runtime (kræver internet — fint for et
 > live site). Alt andet er indlejret.
