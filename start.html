@@ -45,14 +45,20 @@
     .ao-container { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gutter); }
     .mono { font-family: var(--font-mono); }
 
-    main { padding: 48px 0 8px; }
-    h1 { font-family: var(--font-display); font-size: 34px; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 8px; }
-    .lead { color: var(--muted); margin: 0 0 24px; font-size: 17px; max-width: 62ch; }
-    .intro { font-size: 15px; line-height: 1.65; max-width: 72ch; margin: 0 0 28px; }
+    /* Fokuseret layout: bot-vinduet fylder skærmen, så man ikke skal scrolle
+       frem og tilbage mellem sidens tekst og bottens eget scroll-område. */
+    main { padding: 28px 0 0; }
+    main .ao-container { display: flex; flex-direction: column; min-height: calc(100dvh - 68px - 28px); }
+    h1 { font-family: var(--font-display); font-size: 34px; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 6px; }
+    .lead { color: var(--muted); margin: 0 0 16px; font-size: 16px; max-width: 74ch; }
 
-    .bot-frame { border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--paper-2); }
-    .bot-frame iframe { display: block; width: 100%; height: max(620px, calc(100vh - 300px)); border: 0; }
-    .fallback { font-family: var(--font-mono); font-size: 13px; color: var(--muted); margin: 14px 0 56px; }
+    /* Vejledning: hvad man gør med den prompt botten laver. */
+    .startnote { display: flex; gap: 12px; align-items: flex-start; background: var(--paper-2); border: 1px solid var(--line); border-left: 3px solid var(--ao-red); border-radius: var(--radius-md); padding: 13px 16px; margin: 0 0 16px; font-size: 14.5px; line-height: 1.55; max-width: 78ch; }
+    .startnote-label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ao-red); margin: 0 0 4px; }
+
+    .bot-frame { border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--paper-2); display: flex; flex: 1 1 auto; min-height: 460px; }
+    .bot-frame iframe { display: block; width: 100%; height: 100%; min-height: 460px; border: 0; flex: 1 1 auto; }
+    .fallback { font-family: var(--font-mono); font-size: 13px; color: var(--muted); margin: 12px 0 40px; }
     .fallback a { color: var(--ink); text-decoration: underline; }
     .fallback a:hover { color: var(--ao-red); }
 
@@ -111,10 +117,15 @@
   <main>
     <div class="ao-container">
       <h1>Start din POC her</h1>
-      <p class="lead">Tal din idé igennem med botten — på få minutter har du en gennemarbejdet byg-prompt, klar til at bygge med.</p>
-      <p class="intro"><strong>Start her, før du bygger noget.</strong> Et par minutters samtale med botten forvandler en løs idé til en gennemarbejdet byg-prompt — så din POC starter med et klart formål i stedet for et blankt lærred. Og botten er ikke bare et hjælpemiddel: den er <em>selv</em> en POC, bygget på præcis den platform, du er ved at tage i brug. Den er med andre ord et levende bevis på, at en god idé kan blive til noget rigtigt — og den hjælper dig fra idé til stærkt udgangspunkt på ét interview.</p>
+      <p class="lead">Tal din idé igennem med botten — på få minutter har du en gennemarbejdet byg-prompt, klar til at bygge med. Botten er selv en POC, bygget på præcis den platform, du er ved at tage i brug.</p>
+      <div class="startnote">
+        <div>
+          <span class="startnote-label">Når du har din prompt</span>
+          Interviewet ender med en færdig byg-prompt. Når din POC er sat op i VS Code, indsætter du prompten som din <strong>første besked til Claude</strong> — så bygger I videre derfra.
+        </div>
+      </div>
       <div class="bot-frame">
-        <iframe src="https://poc37.aiao.dev" title="Interview-bot — start din POC" allow="microphone" loading="lazy"></iframe>
+        <iframe src="https://poc37.aiao.dev" title="Interview-bot — start din POC" allow="microphone; clipboard-write" loading="lazy"></iframe>
       </div>
       <p class="fallback">Loader botten ikke her? <a href="https://poc37.aiao.dev" target="_blank" rel="noopener">Åbn interviewet i ny fane ↗</a></p>
     </div>
