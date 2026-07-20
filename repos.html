@@ -515,30 +515,33 @@
       var schemaVal=r.supabase_schema
         ? '<span style="font-family:var(--font-mono)">'+esc(r.supabase_schema)+"</span>"
         : "-";
-      // Meta-grid (admin-gridden): Ejer · Stak · Formål (fuld bredde) · Oprettet · Schema · Resumé.
+      // Aktivitet-trafiklys (kun visning — ingen knap på den login-frie side). Serveren udleder
+      // r.aktivitet={dage,niveau} for poc-stadiet (grøn ≤90 · gul 91-120 · rød >120); spejler
+      // admin-PocCardets AktivitetPille (bor i detalje-gitteret, ikke i headeren).
+      var akt=r.aktivitet, aktivPille="";
+      if(akt){
+        var aCls=akt.niveau==="groen"?"cp-pill--aktiv-groen":akt.niveau==="gul"?"cp-pill--aktiv-gul":"cp-pill--aktiv-roed";
+        var aTxt=akt.niveau!=="groen"?("Inaktiv i "+akt.dage+" dage")
+          :akt.dage<=0?"Aktiv · i dag"
+          :("Aktiv · for "+akt.dage+" "+(akt.dage===1?"dag":"dage")+" siden");
+        var aTt=akt.niveau==="groen"?("Sidste aktivitet for "+akt.dage+" dage siden — POC'en er sund")
+          :akt.niveau==="gul"?("Ingen aktivitet i "+akt.dage+" dage — hold øje, overvej snart at arkivere")
+          :("Ingen aktivitet i "+akt.dage+" dage — bør sandsynligvis arkiveres for at spare drift");
+        aktivPille='<span class="cp-pill '+aCls+'" title="'+aTt+'">'+aTxt+"</span>";
+      }
+      // Meta-grid (admin-gridden): Ejer · Stak · Formål (fuld bredde) · Oprettet · Aktivitet · Schema · Resumé.
       var metaGrid='<div class="cp-grid">'+
         field("Ejer",'<div style="font-weight:700">'+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
         field("Stak",stakPills)+
         field("Formål",esc(r.formaal||"-"),true)+
         field("Oprettet",esc(fmtDate(r.oprettet)))+
+        (akt?field("Aktivitet",aktivPille):"")+
         field("Schema",schemaVal)+
         field("Resumé (AI)",resumeVal,true)+
       "</div>";
       var details=prov+metaGrid+docsPanel+promoteField+promoLogField;
       var stageBadge=(r.stage==="test")?'<span class="cp-pill">TEST</span>'
         :(r.stage==="drift")?'<span class="cp-pill">DRIFT</span>':"";
-      // Aktivitet-trafiklys (kun visning — ingen knap på den login-frie side). Serveren udleder
-      // r.aktivitet={dage,niveau} for poc-stadiet (grøn ≤90 · gul 91-120 · rød >120); spejler
-      // admin-PocCardets AktivitetPille.
-      var akt=r.aktivitet, aktivPille="";
-      if(akt){
-        var aCls=akt.niveau==="groen"?"cp-pill--aktiv-groen":akt.niveau==="gul"?"cp-pill--aktiv-gul":"cp-pill--aktiv-roed";
-        var aTxt=akt.niveau==="groen"?("Aktiv · "+akt.dage+" dage"):("Inaktiv i "+akt.dage+" dage");
-        var aTt=akt.niveau==="groen"?("Sidste aktivitet for "+akt.dage+" dage siden — POC'en er sund")
-          :akt.niveau==="gul"?("Ingen aktivitet i "+akt.dage+" dage — hold øje, overvej snart at arkivere")
-          :("Ingen aktivitet i "+akt.dage+" dage — bør sandsynligvis arkiveres for at spare drift");
-        aktivPille='<span class="cp-pill '+aCls+'" title="'+aTt+'">'+aTxt+"</span>";
-      }
       return '<section class="cp-card'+(r.is_live?"":" cp-card--inactive")+'">'+
         '<div class="cp-card__top">'+
           '<span class="cp-avatar'+(r.is_live?"":" cp-avatar--inactive")+'">'+esc(initialsOf(r))+"</span>"+
@@ -549,7 +552,6 @@
           "</div>"+
           (r.is_live?'<span class="cp-live">LIVE</span>':"")+
           stageBadge+
-          aktivPille+
           actions+
           '<button class="chevron" aria-label="Vis detaljer" title="Vis detaljer"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.25 6 7.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
         "</div>"+
