@@ -118,6 +118,8 @@
     .cp-pill--pg     { background: var(--cp-pill-supa-bg);   color: var(--cp-pill-supa-fg);   border-color: var(--cp-pill-supa-line); }
     .cp-pill--ts     { background: var(--cp-pill-next-bg);   color: var(--cp-pill-next-fg);   border-color: var(--cp-pill-next-line); }
     .cp-pill--claude { background: var(--cp-pill-claude-bg); color: var(--cp-pill-claude-fg); border-color: var(--cp-pill-claude-line); }
+    /* Rolig gul "forladt POC"-pille — samme amber som admin-dashboardets inaktiv-flag. */
+    .cp-pill--inaktiv { background: #FFF7E6; color: #8A6D1F; border-color: #F5E1B8; }
 
     /* Provider-tjek-chips i udfoldet kort: "GitHub ✓ Vercel ✓ …" */
     .cp-provrow { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -523,6 +525,11 @@
       var details=prov+metaGrid+docsPanel+promoteField+promoLogField;
       var stageBadge=(r.stage==="test")?'<span class="cp-pill">TEST</span>'
         :(r.stage==="drift")?'<span class="cp-pill">DRIFT</span>':"";
+      // "Forladt POC"-flag (kun visning — ingen knap på den login-frie side). Serveren udleder
+      // inaktiv_dage (kun stage=poc + active + >=90 dage); spejler admin-PocCardets InaktivPille.
+      var inaktivPille=(r.inaktiv_dage!=null)
+        ? '<span class="cp-pill cp-pill--inaktiv" title="Ingen aktivitet i '+r.inaktiv_dage+' dage — overvej at arkivere">Inaktiv i '+r.inaktiv_dage+" dage</span>"
+        : "";
       return '<section class="cp-card'+(r.is_live?"":" cp-card--inactive")+'">'+
         '<div class="cp-card__top">'+
           '<span class="cp-avatar'+(r.is_live?"":" cp-avatar--inactive")+'">'+esc(initialsOf(r))+"</span>"+
@@ -533,6 +540,7 @@
           "</div>"+
           (r.is_live?'<span class="cp-live">LIVE</span>':"")+
           stageBadge+
+          inaktivPille+
           actions+
           '<button class="chevron" aria-label="Vis detaljer" title="Vis detaljer"><svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2.5 4.25 6 7.75l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
         "</div>"+
