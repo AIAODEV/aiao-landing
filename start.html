@@ -45,22 +45,28 @@
     .ao-container { width: 100%; max-width: var(--maxw); margin-inline: auto; padding-inline: var(--gutter); }
     .mono { font-family: var(--font-mono); }
 
-    /* Fokuseret layout: bot-vinduet fylder skærmen, så man ikke skal scrolle
-       frem og tilbage mellem sidens tekst og bottens eget scroll-område. */
-    main { padding: 28px 0 0; }
-    main .ao-container { display: flex; flex-direction: column; min-height: calc(100dvh - 68px - 28px); }
-    h1 { font-family: var(--font-display); font-size: 34px; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 6px; }
-    .lead { color: var(--muted); margin: 0 0 16px; font-size: 16px; max-width: 74ch; }
+    /* App-shell: siden fylder præcis skærmen. Kun bottens eget vindue scroller
+       internt — overskrift, vejledning og footer er synlige uden at scrolle siden. */
+    html, body { height: 100%; }
+    body { display: flex; flex-direction: column; min-height: 100dvh; }
+    main { flex: 1 1 auto; min-height: 0; padding: 20px 0 10px; display: flex; }
+    main .ao-container { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; flex-direction: column; }
+    h1 { font-family: var(--font-display); font-size: 28px; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 4px; }
+    .lead { color: var(--muted); margin: 0 0 12px; font-size: 15px; line-height: 1.45; max-width: 82ch; }
 
     /* Vejledning: hvad man gør med den prompt botten laver. */
-    .startnote { display: flex; gap: 12px; align-items: flex-start; background: var(--paper-2); border: 1px solid var(--line); border-left: 3px solid var(--ao-red); border-radius: var(--radius-md); padding: 13px 16px; margin: 0 0 16px; font-size: 14.5px; line-height: 1.55; max-width: 78ch; }
-    .startnote-label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ao-red); margin: 0 0 4px; }
+    .startnote { background: var(--paper-2); border: 1px solid var(--line); border-left: 3px solid var(--ao-red); border-radius: var(--radius-md); padding: 10px 14px; margin: 0 0 12px; font-size: 14px; line-height: 1.5; max-width: 92ch; }
+    .startnote-label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ao-red); margin: 0 0 2px; }
 
-    .bot-frame { border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--paper-2); display: flex; flex: 1 1 auto; min-height: 460px; }
-    .bot-frame iframe { display: block; width: 100%; height: 100%; min-height: 460px; border: 0; flex: 1 1 auto; }
-    .fallback { font-family: var(--font-mono); font-size: 13px; color: var(--muted); margin: 12px 0 40px; }
+    /* Bot-vinduet: fylder al resterende højde; scroller kun internt. */
+    .bot-frame { border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; background: var(--paper-2); display: flex; flex: 1 1 auto; min-height: 280px; }
+    .bot-frame iframe { display: block; width: 100%; height: 100%; border: 0; flex: 1 1 auto; }
+    .fallback { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
     .fallback a { color: var(--ink); text-decoration: underline; }
     .fallback a:hover { color: var(--ao-red); }
+
+    /* Kompakt footer på denne fokuserede side, så bot-vinduet får mest plads. */
+    footer .ao-container { padding: 14px 0 !important; }
 
     /* ── POLISH: elevation, transitions & animationer — design og tekst uændret.
        Token-værdier (--dur-base, --shadow-*) matcher de bundlede sider. ── */
