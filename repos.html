@@ -124,7 +124,7 @@
     .cp-pill--aktiv-roed  { background: #FDECEC; color: #B42318; border-color: #F5C6C2; }
 
     /* Provider-tjek-chips i udfoldet kort: "GitHub ✓ Vercel ✓ …" */
-    .cp-provrow { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .cp-provrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
     .cp-provchip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; padding: 4px 10px;
       border-radius: 20px; border: 1px solid transparent; }
     .cp-provchip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; flex: none; }
@@ -132,6 +132,19 @@
     .cp-provchip--on::before { background: #16A34A; }
     .cp-provchip--off { background: #F2F2F2; border-color: #DADADA; color: #8A8A8A; }
     .cp-provchip--off::before { background: #CFCFCF; }
+    /* Privacy-slider (spejler admin-terminal.css): grøn "Åben" ↔ rød "Låst" 🔒, yderst til højre. */
+    .cp-privtoggle { margin-left:auto; display:inline-flex; align-items:center; gap:8px; font-size:11px; }
+    .cp-privtoggle .cp-privlabel { font-weight:600; letter-spacing:.02em; color:#6b6b6b; }
+    .cp-privtoggle .cp-privtrack { position:relative; width:100px; height:26px; border-radius:999px; border:1px solid; cursor:pointer; padding:0; background:none; transition:background .15s, border-color .15s; display:inline-flex; align-items:center; }
+    .cp-privtoggle .cp-privtrack:disabled { opacity:.55; cursor:default; }
+    .cp-privtrack--pub { background:#E7F7EE; border-color:#BEE9CF; }
+    .cp-privtrack--priv { background:#FBE6E8; border-color:#F1C2C7; }
+    .cp-privtoggle .cp-privtext { position:absolute; font-size:10px; font-weight:700; letter-spacing:.04em; }
+    .cp-privtrack--pub .cp-privtext { right:12px; color:#2E9E6B; }
+    .cp-privtrack--priv .cp-privtext { left:12px; color:#C42430; }
+    .cp-privtoggle .cp-privknob { position:absolute; top:2px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.2); display:flex; align-items:center; justify-content:center; }
+    .cp-privtrack--pub .cp-privknob { left:2px; color:#16A34A; }
+    .cp-privtrack--priv .cp-privknob { left:78px; color:#E11D2A; }
 
     .cp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
     .f.span { grid-column: 1 / -1; }
@@ -405,6 +418,21 @@
     function host(r){ if(r.live_url){try{return new URL(r.live_url).host;}catch(e){}} return r.poc+".aiao.dev"; }
     function fmtDate(iso){ if(!iso) return "-"; var d=new Date(iso); if(isNaN(d.getTime())) return "-"; try{return d.toLocaleDateString("da-DK",{day:"numeric",month:"long",year:"numeric"});}catch(e){return iso;} }
     function provchip(on,label){ return '<span class="cp-provchip cp-provchip--'+(on?"on":"off")+'">'+esc(label)+" "+(on?"✓":"✗")+"</span>"; }
+    // Hængelås-SVG (lucide-agtig) — /repos har ikke lucide, så inline. locked=lukket bøjle.
+    function padlockSvg(locked){ return locked
+      ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+      : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'; }
+    // Privacy-slider — kun på egne kort (r.is_mine, dvs. indlogget ejer). Klik → data-vis-handler.
+    function privtoggle(r){
+      if(!r.is_mine) return "";
+      var priv=(r.synlighed==="private");
+      return '<span class="cp-privtoggle"><span class="cp-privlabel">Privat</span>'+
+        '<button type="button" class="cp-privtrack '+(priv?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
+        'data-vis="'+esc(r.poc)+'" data-syn="'+(priv?"private":"public")+'" '+
+        'title="Privat = kun du + admins ser POC\'en. Offentlig = synlig for alle på aiao.dev/repos.">'+
+        '<span class="cp-privtext">'+(priv?"Låst":"Åben")+"</span>"+
+        '<span class="cp-privknob">'+padlockSvg(priv)+"</span></button></span>";
+    }
     function field(label,val,span){ return '<div class="f'+(span?" span":"")+'"><div class="cp-label">'+esc(label)+'</div><div class="cp-fval">'+val+"</div></div>"; }
     function initialsOf(r){
       if(r.ejer_navn){ var p=r.ejer_navn.trim().split(/\s+/); var s=((p[0]?p[0].charAt(0):"")+(p[1]?p[1].charAt(0):"")).toUpperCase(); if(s) return s; }
@@ -432,7 +460,7 @@
       var prov='<div class="cp-provrow">'+
         provchip(r.has_github,"GitHub")+provchip(r.has_vercel,"Vercel")+
         provchip(r.has_railway,"Railway")+provchip(r.has_supabase,"Supabase")+
-        provchip(r.is_live,"Live")+"</div>";
+        provchip(r.is_live,"Live")+privtoggle(r)+"</div>";
       var actions="";
       if(r.live_url) actions+='<a class="cp-btn cp-btn--live" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer" title="Åbner den kørende app i en ny fane">'+ICONS.ext+"ÅBN</a>";
       // Top-højre: grøn "ÅBN TEST" når POC'en er på test (åbn-handling). "Anmod om test" er en
@@ -539,7 +567,14 @@
         field("Schema",schemaVal)+
         field("Resumé (AI)",resumeVal,true)+
       "</div>";
-      var details=prov+metaGrid+docsPanel+promoteField+promoLogField;
+      // Sletning (kun egne kort, dvs. indlogget ejer): anmod/fortryd. Hard-delete udføres af admin.
+      var sletField = r.is_mine ? field("Sletning (kun ejer/admin)",
+        (r.sletning_anmodet
+          ? '<span class="cp-meta">🗑 Sletning anmodet '+esc(fmtDate(r.sletning_anmodet))+"</span> "+
+            '<button class="cp-btn cp-btn--ghost" data-canceldel="'+esc(r.poc)+'" title="Fortryd sletnings-anmodningen">FORTRYD</button>'
+          : '<button class="cp-btn cp-btn--ghost" data-reqdel="'+esc(r.poc)+'" title="Beder en admin slette POC\'en permanent (sletter ikke selv)">ANMOD OM SLETNING</button>')+
+        '<div class="docmsg" id="sletmsg-'+pe+'"></div>', true) : "";
+      var details=prov+metaGrid+docsPanel+promoteField+promoLogField+sletField;
       var stageBadge=(r.stage==="test")?'<span class="cp-pill">TEST</span>'
         :(r.stage==="drift")?'<span class="cp-pill">DRIFT</span>':"";
       return '<section class="cp-card'+(r.is_live?"":" cp-card--inactive")+'">'+
@@ -628,6 +663,12 @@
       if(view){ e.stopPropagation(); requestView(view.getAttribute("data-poc"), view.getAttribute("data-view")); return; }
       var act=e.target.closest("[data-act]");
       if(act){ e.stopPropagation(); requestDoc(act.getAttribute("data-poc"), act.getAttribute("data-act"), act); return; }
+      var vis=e.target.closest("[data-vis]");
+      if(vis){ e.stopPropagation(); toggleVis(vis.getAttribute("data-vis"), vis.getAttribute("data-syn")); return; }
+      var rq=e.target.closest("[data-reqdel]");
+      if(rq){ e.stopPropagation(); reqDel(rq.getAttribute("data-reqdel")); return; }
+      var cd=e.target.closest("[data-canceldel]");
+      if(cd){ e.stopPropagation(); cancelDel(cd.getAttribute("data-canceldel")); return; }
       var prom=e.target.closest("[data-promote]");
       if(prom){ e.stopPropagation(); requestPromote(prom.getAttribute("data-promote"), prom); return; }
       var plog=e.target.closest("[data-promolog]");
@@ -641,10 +682,24 @@
         if(chev) chev.title=c.classList.contains("open")?"Skjul detaljer":"Vis detaljer";
       }
     });
-    fetch(API+"/public/repos")
-      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
-      .then(function(d){ render(d&&Array.isArray(d.repos)?d.repos:d); })
-      .catch(function(){ grid.innerHTML='<div class="state err">Kunne ikke hente listen lige nu. Proev at genindlaese siden om lidt.</div>'; });
+    // Henter /public/repos. Med session sendes token → serveren tilføjer kalderens egne (også
+    // private) POC'er (is_mine) så ejeren kan se + styre dem her. Uden session: kun public.
+    function loadRepos(){
+      var headers = session ? { Authorization: "Bearer "+session } : {};
+      return fetch(API+"/public/repos",{ headers: headers })
+        .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+        .then(function(d){ render(d&&Array.isArray(d.repos)?d.repos:d); })
+        .catch(function(){ grid.innerHTML='<div class="state err">Kunne ikke hente listen lige nu. Proev at genindlaese siden om lidt.</div>'; });
+    }
+    // Login-reveal: lad en ejer logge ind og se + styre sine egne (også private) POC'er.
+    (function(){
+      var b=document.createElement("button");
+      b.className="cp-btn cp-btn--ghost"; b.style.margin="0 0 16px";
+      b.textContent="Log ind — se & styr dine POC'er";
+      b.addEventListener("click",function(){ if(session){ loadRepos(); } else { pending={reveal:true}; openLogin(); } });
+      if(grid&&grid.parentNode) grid.parentNode.insertBefore(b, grid);
+    })();
+    loadRepos();
 
     // ── Ejer-handlinger: generér docs/brugerguide.md + docs/loesningsbeskrivelse.md ──────────
     // Kræver en control-plane Supabase-session (samme konto som admin.aiao.dev). Token holdes KUN
@@ -661,6 +716,31 @@
     }
     function openLogin(){ liErr.textContent=""; loginBg.classList.add("show"); liEmail.focus(); }
     function closeLogin(){ loginBg.classList.remove("show"); }
+
+    // ── Ejer-styring (kun is_mine-kort, dvs. indlogget ejer): synlighed-slider + anmod/fortryd sletning ──
+    function toggleVis(poc, cur){
+      if(!session) return;
+      var next=(cur==="private")?"public":"private";
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/visibility",{
+        method:"POST", headers:{ Authorization:"Bearer "+session, "Content-Type":"application/json" },
+        body:JSON.stringify({ synlighed: next })
+      }).then(function(r){ if(r.status===401){ session=null; openLogin(); return; } loadRepos(); })
+        .catch(function(){ loadRepos(); });
+    }
+    function sletMsg(poc,cls,html){ var el=document.getElementById("sletmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
+    function reqDel(poc){
+      if(!session) return;
+      if(!window.confirm("Anmod en admin om at slette denne POC permanent?")) return;
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/request-deletion",{ method:"POST", headers:{ Authorization:"Bearer "+session } })
+        .then(function(r){ if(!r.ok){ sletMsg(poc,"err","Kunne ikke sende anmodningen."); return; } loadRepos(); })
+        .catch(function(){ sletMsg(poc,"err","Kunne ikke sende anmodningen."); });
+    }
+    function cancelDel(poc){
+      if(!session) return;
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/request-deletion",{ method:"DELETE", headers:{ Authorization:"Bearer "+session } })
+        .then(function(r){ if(!r.ok){ sletMsg(poc,"err","Kunne ikke fortryde."); return; } loadRepos(); })
+        .catch(function(){ sletMsg(poc,"err","Kunne ikke fortryde."); });
+    }
 
     function requestDoc(poc,kind,btn){
       if(session) return runDoc(poc,kind,btn);
@@ -942,7 +1022,12 @@
           body:JSON.stringify({ email:email, password:pw })
         });
       }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
-        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin(); if(pending){ var p=pending; pending=null; if(p.promote){ startPromoteFlow(p.poc); } else { runDoc(p.poc,p.kind, document.querySelector('[data-act="'+p.kind+'"][data-poc="'+p.poc+'"]')); } } })
+        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin();
+          var p=pending; pending=null;
+          if(p&&p.promote){ startPromoteFlow(p.poc); }
+          else if(p&&p.kind){ runDoc(p.poc,p.kind, document.querySelector('[data-act="'+p.kind+'"][data-poc="'+p.poc+'"]')); }
+          else { loadRepos(); }  // reveal/almindeligt login → re-fetch authed: egne private + is_mine-kontroller
+        })
         .catch(function(e){ if(e&&e.message&&e.message!=="no-config") liErr.textContent=e.message; });
     }
     document.getElementById("li-go").addEventListener("click",doLogin);
