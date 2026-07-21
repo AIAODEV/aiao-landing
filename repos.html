@@ -694,7 +694,7 @@
     // Login-reveal: lad en ejer logge ind og se + styre sine egne (også private) POC'er.
     (function(){
       var b=document.createElement("button");
-      b.className="cp-btn cp-btn--ghost"; b.style.margin="0 0 16px";
+      b.className="cp-btn cp-btn--live"; b.style.margin="0 0 16px";
       b.textContent="Log ind — se & styr dine POC'er";
       b.addEventListener("click",function(){ if(session){ loadRepos(); } else { pending={reveal:true}; openLogin(); } });
       if(grid&&grid.parentNode) grid.parentNode.insertBefore(b, grid);
