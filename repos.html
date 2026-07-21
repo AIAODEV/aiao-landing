@@ -325,7 +325,10 @@
   <main>
     <div class="ao-container">
       <h1>POC-oversigt</h1>
-      <p class="lead">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+        <p class="lead" style="margin:0;flex:1 1 340px;">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
+        <button id="revealBtn" class="cp-btn cp-btn--live" style="flex:none;white-space:nowrap;">Log ind — se &amp; styr dine POC'er</button>
+      </div>
       <div id="grid" class="grid"><div class="state">Henter POC'er ...</div></div>
       <p class="hint"><strong>Åbn i VS Code</strong> henter projektet <em>forbundet</em> til GitHub (klar til at udgive). Det kræver, at du har VS Code installeret og er logget ind i GitHub - så ved vi også, at det er dig, der henter dit repo.</p>
     </div>
@@ -691,13 +694,10 @@
         .then(function(d){ render(d&&Array.isArray(d.repos)?d.repos:d); })
         .catch(function(){ grid.innerHTML='<div class="state err">Kunne ikke hente listen lige nu. Proev at genindlaese siden om lidt.</div>'; });
     }
-    // Login-reveal: lad en ejer logge ind og se + styre sine egne (også private) POC'er.
+    // Login-reveal: knappen bor i headeren (ved siden af lead-teksten, højre) — her wires klikket.
     (function(){
-      var b=document.createElement("button");
-      b.className="cp-btn cp-btn--live"; b.style.margin="0 0 16px";
-      b.textContent="Log ind — se & styr dine POC'er";
-      b.addEventListener("click",function(){ if(session){ loadRepos(); } else { pending={reveal:true}; openLogin(); } });
-      if(grid&&grid.parentNode) grid.parentNode.insertBefore(b, grid);
+      var b=document.getElementById("revealBtn");
+      if(b) b.addEventListener("click",function(){ if(session){ loadRepos(); } else { pending={reveal:true}; openLogin(); } });
     })();
     loadRepos();
 
