@@ -475,7 +475,7 @@
       // udstedt, så et klik ikke rammer ERR_CERT_DATE_INVALID uden forklaring.
       else if(r.stage==="drift" && r.drift_url)
         actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.drift_url)+'" target="_blank" rel="noopener noreferrer" title="Åbner produktions-udgaven i en ny fane">'+ICONS.ext+"ÅBN DRIFT"+(r.drift_dns_verified?"":" (afventer DNS)")+"</a>";
-      actions+='<a class="cp-btn cp-btn--ghost" href="'+esc(vscodeUrl)+'" title="Åbner VS Code og henter projektet forbundet — klar til at bygge">'+ICONS.code+"ÅBN I VS CODE</a>";
+      actions+='<a class="cp-btn cp-btn--ghost" href="'+esc(vscodeUrl)+'" title="Åbner VS Code og henter projektet forbundet — klar til at bygge. Virker først, når du har taget imod GitHub-invitationen (tjek din mail) og er logget ind i GitHub.">'+ICONS.code+"ÅBN I VS CODE</a>";
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" · ")||"-";
       var stakPills=STAK.map(function(s){return '<span class="cp-pill cp-pill--'+s[1]+'">'+esc(s[0])+"</span>";}).join("");
