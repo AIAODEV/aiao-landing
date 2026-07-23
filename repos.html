@@ -475,7 +475,10 @@
       // udstedt, så et klik ikke rammer ERR_CERT_DATE_INVALID uden forklaring.
       else if(r.stage==="drift" && r.drift_url)
         actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.drift_url)+'" target="_blank" rel="noopener noreferrer" title="Åbner produktions-udgaven i en ny fane">'+ICONS.ext+"ÅBN DRIFT"+(r.drift_dns_verified?"":" (afventer DNS)")+"</a>";
-      actions+='<a class="cp-btn cp-btn--ghost" href="'+esc(vscodeUrl)+'" title="Åbner VS Code og henter projektet forbundet — klar til at bygge. Virker først, når du har taget imod GitHub-invitationen (tjek din mail) og er logget ind i GitHub.">'+ICONS.code+"ÅBN I VS CODE</a>";
+      // Stabilt pr.-kort-hook (id="vscode-<poc>") så gaten kan opgradere netop denne knap efter render.
+      // Knappen fødes altid aktiv (fail-open); kun for indloggede ejeres egne kort tjekker vi bagefter
+      // GitHub-invite-status og spærrer den, hvis invitationen endnu ikke er accepteret (se gateVscodeButtons).
+      actions+='<a id="vscode-'+esc(r.poc)+'" class="cp-btn cp-btn--ghost" href="'+esc(vscodeUrl)+'" title="Åbner VS Code og henter projektet forbundet — klar til at bygge. Virker først, når du har taget imod GitHub-invitationen (tjek din mail) og er logget ind i GitHub.">'+ICONS.code+"ÅBN I VS CODE</a>";
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" · ")||"-";
       var stakPills=STAK.map(function(s){return '<span class="cp-pill cp-pill--'+s[1]+'">'+esc(s[0])+"</span>";}).join("");
@@ -599,6 +602,36 @@
     function render(list){
       if(!Array.isArray(list)||list.length===0){ grid.innerHTML='<div class="state">Ingen aktive POC\'er endnu.</div>'; return; }
       grid.innerHTML=list.map(card).join("");
+      gateVscodeButtons(list);
+    }
+    // VS Code-invite-gate (spejler admin-PocCard 1:1): kun for den indloggede ejers EGNE kort tjekker vi,
+    // om GitHub-invitationen er accepteret. GET /pocs/{poc}/vscode-access → {status:"ok"|"afventer"|"ukendt"}.
+    // FAIL-OPEN overalt: anonym, andres kort, netværks-/HTTP-fejl eller status ok/ukendt → den aktive knap
+    // bliver stående (født aktiv i card()). KUN "afventer" nedgraderer knappen til en grå, ikke-klikbar
+    // udgave med samme danske forklaring som admin. En hikke må aldrig vise en låst knap.
+    function gateVscodeButtons(list){
+      if(!session||!Array.isArray(list)) return;
+      list.forEach(function(r){
+        if(!r||!r.is_mine||!r.poc) return;
+        if(!document.getElementById("vscode-"+r.poc)) return;
+        fetch(API+"/pocs/"+encodeURIComponent(r.poc)+"/vscode-access",{ headers:{ Authorization:"Bearer "+session } })
+          .then(function(res){ if(!res.ok) return null; return res.json().catch(function(){return null;}); })
+          .then(function(d){
+            if(!d||d.status!=="afventer") return;  // ok/ukendt/tom → fail-open, lad den aktive knap stå
+            var cur=document.getElementById("vscode-"+r.poc);  // kortet kan være re-rendret imens
+            if(!cur||cur.getAttribute("aria-disabled")==="true") return;
+            var span=document.createElement("span");
+            span.id="vscode-"+r.poc;
+            span.className="cp-btn cp-btn--ghost";
+            span.setAttribute("aria-disabled","true");
+            span.style.opacity="0.5";
+            span.style.cursor="not-allowed";
+            span.title="Tag imod GitHub-invitationen i din mail først — så kan du åbne projektet i VS Code.";
+            span.innerHTML=ICONS.code+"ÅBN I VS CODE (afventer invitation)";
+            cur.parentNode.replaceChild(span,cur);
+          })
+          .catch(function(){ /* fail-open: lad den aktive knap stå */ });
+      });
     }
     // ── Forfremmelses-log: pr.-kort nested fold-ud, login-frit (GET /public/promotions/{poc}) ────
     function dtFull(s){ if(!s) return "—"; var d=new Date(s); if(isNaN(d.getTime())) return "—"; try{return d.toLocaleString("da-DK");}catch(e){return esc(s);} }
