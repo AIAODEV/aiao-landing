@@ -327,7 +327,10 @@
       <h1>POC-oversigt</h1>
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;">
         <p class="lead" style="margin:0;flex:1 1 340px;">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
-        <button id="revealBtn" class="cp-btn cp-btn--live" style="flex:none;white-space:nowrap;" title="Log ind med din AIAO-konto (samme som admin.aiao.dev), så du også ser dine egne private POC'er og kan styre synlighed og bede om sletning.">Log ind — se &amp; styr dine POC'er</button>
+        <div style="flex:none;display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="revealBtn" class="cp-btn cp-btn--live" style="white-space:nowrap;" title="Log ind med din AIAO-konto (samme som admin.aiao.dev), så du også ser dine egne private POC'er og kan styre synlighed og bede om sletning.">Log ind — se &amp; styr dine POC'er</button>
+          <button id="requestBtn" class="cp-btn cp-btn--ghost" style="white-space:nowrap;display:none;" title="Bed om en ny POC — udfyld navn og formål, så kigger en admin på anmodningen.">+ Anmod om ny POC</button>
+        </div>
       </div>
       <div id="grid" class="grid"><div class="state">Henter POC'er ...</div></div>
       <p class="hint"><strong>Åbn i VS Code</strong> henter projektet <em>forbundet</em> til GitHub (klar til at udgive). Det kræver, at du har VS Code installeret og er logget ind i GitHub - så ved vi også, at det er dig, der henter dit repo.</p>
@@ -390,6 +393,25 @@
       <div class="row">
         <button class="btn primary" id="promo-go">Bekræft</button>
         <button class="btn" id="promo-cancel">Annullér</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-bg" id="reqBg">
+    <div class="modal">
+      <h3>Anmod om ny POC</h3>
+      <p>Beskriv den POC du gerne vil have oprettet. En admin kigger på anmodningen og opretter den.</p>
+      <label for="req-navn">Ønsket navn</label>
+      <input id="req-navn" type="text" maxlength="120" placeholder="Fx: Fakturaovervågning" />
+      <label for="req-formaal">Formål (valgfrit)</label>
+      <textarea id="req-formaal" rows="3" maxlength="2000" placeholder="Hvad skal POC'en kunne? Hvem er den til?"></textarea>
+      <label for="req-slug">Ønsket adresse (valgfrit)</label>
+      <input id="req-slug" type="text" maxlength="40" placeholder="Fx: faktura" />
+      <div class="f-sub" style="margin-top:5px;">Bliver til POC'ens adresse. En admin kan justere den.</div>
+      <div class="m-err" id="req-err"></div>
+      <div class="row">
+        <button class="btn primary" id="req-go">Send anmodning</button>
+        <button class="btn" id="req-cancel">Annullér</button>
       </div>
     </div>
   </div>
@@ -734,6 +756,60 @@
     })();
     loadRepos();
 
+    // ── Anmod om ny POC (indloggede byggere) ────────────────────────────────────────────────
+    // Knappen er skjult til man er logget ind (ejer-beslutning JAW): anonyme logger ind via
+    // "Log ind — se & styr"-knappen først; "+ Anmod om ny POC" dukker op i samme øjeblik session
+    // er sat. Serveren håndhæver rolle-kravet (POST /poc-requests kræver en tildelt rolle).
+    var reqBtn=document.getElementById("requestBtn");
+    var reqBg=document.getElementById("reqBg");
+    var reqNavn=document.getElementById("req-navn"), reqFormaal=document.getElementById("req-formaal");
+    var reqSlug=document.getElementById("req-slug"), reqErr=document.getElementById("req-err");
+    var reqGo=document.getElementById("req-go"), reqCancel=document.getElementById("req-cancel");
+    function showRequestBtn(){ if(reqBtn) reqBtn.style.display=session?"":"none"; }
+    function openReq(){
+      reqErr.textContent=""; reqErr.className="m-err";
+      reqNavn.value=""; reqFormaal.value=""; reqSlug.value="";
+      reqGo.disabled=false; reqGo.textContent="Send anmodning";
+      reqBg.classList.add("show"); reqNavn.focus();
+    }
+    function closeReq(){ reqBg.classList.remove("show"); }
+    function submitRequest(){
+      var navn=reqNavn.value.trim();
+      if(!navn){ reqErr.className="m-err"; reqErr.textContent="Udfyld et ønsket navn."; return; }
+      var body={ oensket_navn:navn };
+      var formaal=reqFormaal.value.trim(); if(formaal) body.formaal=formaal;
+      var slug=reqSlug.value.trim(); if(slug) body.oensket_slug=slug;
+      reqErr.className="m-err"; reqErr.textContent="Sender anmodning …";
+      reqGo.disabled=true;
+      fetch(API+"/poc-requests",{
+        method:"POST",
+        headers:{ Authorization:"Bearer "+session, "Content-Type":"application/json" },
+        body:JSON.stringify(body)
+      }).then(function(r){
+        if(r.status===401){ session=null; pending={requestPoc:true}; showRequestBtn(); closeReq(); openLogin(); return null; }
+        if(r.status===201){ closeReq(); return "ok"; }
+        // 400 (ugyldig slug/tomt navn) / 403 (ingen rolle) / andet: vis backendens detail hvis muligt.
+        return r.text().then(function(t){
+          var detail=""; try{ detail=(JSON.parse(t)||{}).detail||""; }catch(_){}
+          var err=new Error(detail||"Kunne ikke sende anmodningen — prøv igen."); err.user=!!detail; throw err;
+        });
+      }).then(function(ok){
+        reqGo.disabled=false;
+        if(ok==="ok" && session){  // 201: modalen er lukket → vis kvittering i grid-området
+          grid.insertAdjacentHTML("afterbegin",'<div class="state" style="grid-column:1/-1;color:#16A34A;">✓ Din anmodning er sendt — en admin kigger på den.</div>');
+        }
+      }).catch(function(e){
+        reqGo.disabled=false;
+        reqErr.className="m-err";
+        reqErr.textContent=(e&&e.user&&e.message)?e.message:"Kunne ikke sende anmodningen — prøv igen.";
+      });
+    }
+    if(reqBtn) reqBtn.addEventListener("click",function(){ if(session){ openReq(); } else { pending={requestPoc:true}; openLogin(); } });
+    reqGo.addEventListener("click",submitRequest);
+    reqCancel.addEventListener("click",function(){ closeReq(); });
+    reqBg.addEventListener("click",function(e){ if(e.target===reqBg) closeReq(); });
+    reqSlug.addEventListener("keydown",function(e){ if(e.key==="Enter") submitRequest(); });
+
     // ── Ejer-handlinger: generér docs/brugerguide.md + docs/loesningsbeskrivelse.md ──────────
     // Kræver en control-plane Supabase-session (samme konto som admin.aiao.dev). Token holdes KUN
     // i hukommelsen; serveren håndhæver ejer/admin (ikke-ejere får 403). Nøgler er offentlige (anon).
@@ -1056,8 +1132,10 @@
         });
       }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
         .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin();
+          showRequestBtn();  // "+ Anmod om ny POC" dukker op i samme øjeblik session er sat
           var p=pending; pending=null;
           if(p&&p.promote){ startPromoteFlow(p.poc); }
+          else if(p&&p.requestPoc){ openReq(); }
           else if(p&&p.kind){ runDoc(p.poc,p.kind, document.querySelector('[data-act="'+p.kind+'"][data-poc="'+p.poc+'"]')); }
           else { loadRepos(); }  // reveal/almindeligt login → re-fetch authed: egne private + is_mine-kontroller
         })
