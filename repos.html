@@ -491,7 +491,7 @@
       // Top-højre: grøn "ÅBN TEST" når POC'en er på test (åbn-handling). "Anmod om test" er en
       // sjælden handling → den bor i detaljerne (promoteField), ikke i den altid-synlige top.
       if(r.stage==="test")
-        actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.poc)+'-test.aiao.dev" target="_blank" rel="noopener noreferrer" title="Åbner test-udgaven (den frosne version til godkendelse) i en ny fane">'+ICONS.ext+"ÅBN TEST</a>";
+        actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.test_url||(r.poc+"-test.aiao.dev"))+'" target="_blank" rel="noopener noreferrer" title="Åbner test-udgaven (den frosne version til godkendelse) i en ny fane">'+ICONS.ext+"ÅBN TEST</a>";
       // Drift-stadiet: grøn "ÅBN DRIFT" → <slug>.aiao.work (produktions-adressen). Spejler ÅBN DRIFT på
       // admin-PocCard; drift_url er en bar host (uden skema). Markér "(afventer DNS)" indtil cert'et er
       // udstedt, så et klik ikke rammer ERR_CERT_DATE_INVALID uden forklaring.
