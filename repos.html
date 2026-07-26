@@ -456,7 +456,7 @@
       return '<span class="cp-privtoggle"><span class="cp-privlabel">Login</span>'+
         '<button type="button" class="cp-privtrack '+(laast?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
         'data-adg="'+esc(r.poc)+'" data-adgcur="'+(laast?"laast":"aaben")+'" '+
-        'title="Låst = appen kræver AIAO-login. Træder i kraft ved næste genudgivelse.">'+
+        'title="Låst = appen kræver AIAO-login (alle adresser: poc/test/drift). Træder i kraft ved næste GENUDGIV/deploy.">'+
         '<span class="cp-privtext">'+(laast?"Låst":"Åben")+"</span>"+
         '<span class="cp-privknob">'+padlockSvg(laast)+"</span></button></span>";
     }
