@@ -25,6 +25,35 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 > som doc-generering; serveren håndhæver ejer/admin). Da `repos.html` er hånd-skrevet, redigeres den
 > direkte — ingen bundle-kirurgi.
 
+> **NB (2026-07-26) — `repos.html` har nu TRE ejer-slidere i provider-rækken:** **Login**
+> (`adgang` — appens sider bag AIAO-login) · **API** (`api_adgang` — appens egen backend, skive 3) ·
+> **Privat** (`synlighed` — listning). Alle tre kun på egne kort (`r.is_mine`). To regler der er
+> nemme at bryde:
+> 1. **Layout:** den FØRSTE slider bærer rækkens `margin-left:auto`; de øvrige sætter
+>    `margin-left:0` inline. Ellers deler flere `.cp-privtoggle` friarealet ligeligt og strander
+>    midt i rækken. Samme regel gælder en evt. fjerde slider.
+> 2. **API-slideren rendres ALTID** (for egne kort) men med `display:none` når siderne er åbne —
+>    den kræver side-loginet (serveren afviser kombinationen med 400). En betinget render ville få
+>    slideren til at "forsvinde" indtil et reload, fordi `toggleAdgang` bevidst ikke gentegner
+>    kortet. `toggleAdgang` viser/skjuler den i stedet lokalt og nulstiller den til "Åben" når
+>    siderne åbnes (serveren frigiver samtidig API-låsen — spejl den, ellers lyver slideren).
+>
+> **Sådan verificeres slider-TILSTANDE før push** (Entra-gaten blokerer maskin-tjek af det live
+> site, og et screenshot alene er ikke nok — det viser kun de øverste kort, og sammenklappede kort
+> skjuler hele `.cp-card__details` hvor sliderne bor):
+> 1. `node --check` på det inline-script (klip det ud af HTML'en først).
+> 2. Lav en kopi hvor `window.fetch` er stubbet med kort der dækker ALLE kombinationer
+>    (egen/andens · sider låst/åben · API låst/åben), plus et lille script der kører
+>    `document.querySelectorAll('.cp-card').forEach(c => c.classList.add('open'))`.
+> 3. `msedge --headless --disable-gpu --virtual-time-budget=9000 --dump-dom file:///…` → tæl
+>    `data-adg` / `data-apiadg` / `data-vis` pr. kort og læs `display` på `#apitog-<poc>`.
+> 4. Evt. `--screenshot` til et visuelt tjek af at rækken ikke ombryder.
+>
+> ⚠️ **Klip ALDRIG kortene ud af DOM'en med regex** (fx "fra `vscode-<poc>` til næste kort") —
+> udsnittet løber ind i nabokortet og giver falske fund. Det skete 2026-07-26: en assertion
+> "meldte" slidere på et kort der ikke havde nogen. Tæl `data-`attributter, eller brug
+> `closest('.cp-card')` inde i siden.
+
 > **NB (status pr. 2026-07-02):** `repos.html` er i dag den eneste HÅND-skrevne
 > standalone-side (vedligeholdelig kilde — kan redigeres direkte); `byg.html` er
 > siden blevet en kompileret bundle som `index/flow`. Menu-ændringer i de

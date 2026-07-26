@@ -460,6 +460,25 @@
         '<span class="cp-privtext">'+(laast?"Låst":"Åben")+"</span>"+
         '<span class="cp-privknob">'+padlockSvg(laast)+"</span></button></span>";
     }
+    // API-slider (skive 3) — låser appens EGEN backend (data + AI). Vises KUN når siderne allerede
+    // er låst: API-låsen bygger på det login (uden side-gaten får appen aldrig et token at sende
+    // med, og serveren afviser derfor kombinationen). Spejler admin-PocCardets ApiAccessToggle.
+    // margin-left:0: login-slideren foran bærer rækkens auto-margin.
+    // Altid RENDERET (for egne kort) men skjult når siderne er åbne — så login-slideren kan vise/skjule
+    // den lokalt i begge retninger uden at gentegne kortet (toggleAdgang gentegner ikke; en
+    // "kun-ved-reload"-slider ville se ud som om den var forsvundet).
+    function apitoggle(r){
+      if(!r.is_mine) return "";
+      var laast=(r.api_adgang==="laast");
+      var skjul=(r.adgang!=="laast");
+      return '<span class="cp-privtoggle" id="apitog-'+encodeURIComponent(r.poc)+'" '+
+        'style="margin-left:0'+(skjul?";display:none":"")+'"><span class="cp-privlabel">API</span>'+
+        '<button type="button" class="cp-privtrack '+(laast?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
+        'data-apiadg="'+esc(r.poc)+'" data-apiadgcur="'+(laast?"laast":"aaben")+'" '+
+        'title="Låst = også appens API (data + AI) kræver AIAO-login. Kræver at appen bruger skabelonens aiaoFetch (v0.15+). Træder i kraft ved næste GENUDGIV/deploy.">'+
+        '<span class="cp-privtext">'+(laast?"Låst":"Åben")+"</span>"+
+        '<span class="cp-privknob">'+padlockSvg(laast)+"</span></button></span>";
+    }
     // Privacy-slider — kun på egne kort (r.is_mine, dvs. indlogget ejer). Klik → data-vis-handler.
     // margin-left:0 inline: adgangs-slideren (altid vist sammen med denne) bærer auto-marginen.
     function privtoggle(r){
@@ -499,7 +518,7 @@
       var prov='<div class="cp-provrow">'+
         provchip(r.has_github,"GitHub")+provchip(r.has_vercel,"Vercel")+
         provchip(r.has_railway,"Railway")+provchip(r.has_supabase,"Supabase")+
-        provchip(r.is_live,"Live")+adgtoggle(r)+privtoggle(r)+"</div>"+
+        provchip(r.is_live,"Live")+adgtoggle(r)+apitoggle(r)+privtoggle(r)+"</div>"+
         // Efemer note-plads til adgangs-slideren (kun egne kort): "husk genudgivelse" efter toggle.
         (r.is_mine?'<div class="docmsg" id="adgmsg-'+encodeURIComponent(r.poc)+'" style="min-height:0;margin-top:0"></div>':"");
       var actions="";
@@ -741,6 +760,8 @@
       if(vis){ e.stopPropagation(); toggleVis(vis.getAttribute("data-vis"), vis.getAttribute("data-syn")); return; }
       var adg=e.target.closest("[data-adg]");
       if(adg){ e.stopPropagation(); toggleAdgang(adg, adg.getAttribute("data-adg"), adg.getAttribute("data-adgcur")); return; }
+      var apiadg=e.target.closest("[data-apiadg]");
+      if(apiadg){ e.stopPropagation(); toggleApiAdgang(apiadg, apiadg.getAttribute("data-apiadg"), apiadg.getAttribute("data-apiadgcur")); return; }
       var rq=e.target.closest("[data-reqdel]");
       if(rq){ e.stopPropagation(); reqDel(rq.getAttribute("data-reqdel")); return; }
       var cd=e.target.closest("[data-canceldel]");
@@ -874,8 +895,48 @@
         btn.className="cp-privtrack "+(laast?"cp-privtrack--priv":"cp-privtrack--pub");
         var t=btn.querySelector(".cp-privtext"); if(t) t.textContent=(laast?"Låst":"Åben");
         var k=btn.querySelector(".cp-privknob"); if(k) k.innerHTML=padlockSvg(laast);
+        // API-slideren hører til side-låsen: vis den når siderne låses, skjul den når de åbnes.
+        // Serveren FRIGIVER samtidig API-låsen når siderne åbnes (ellers kunne ingen få et token
+        // og appens egne kald ville 401'e) → spejl den nulstilling i UI'et, så sliderne ikke lyver.
+        var api=document.getElementById("apitog-"+encodeURIComponent(poc));
+        if(api){
+          api.style.display=laast?"":"none";
+          if(!laast){
+            var ab=api.querySelector("[data-apiadg]");
+            if(ab){
+              ab.setAttribute("data-apiadgcur","aaben");
+              ab.className="cp-privtrack cp-privtrack--pub";
+              var at=ab.querySelector(".cp-privtext"); if(at) at.textContent="Åben";
+              var ak=ab.querySelector(".cp-privknob"); if(ak) ak.innerHTML=padlockSvg(false);
+            }
+          }
+        }
         adgMsg(poc,"ok","Husk GENUDGIV — låsen træder først i kraft ved næste udgivelse.");
       }).catch(function(){ btn.disabled=false; adgMsg(poc,"err","Kunne ikke ændre adgangs-låsen."); });
+    }
+    // API-lås (skive 3): POST /pocs/{poc}/api-adgang. Samme lokale flip + efemer note som side-låsen
+    // (de deler note-pladsen). Serveren afviser 400 hvis siderne ikke er låst — den besked vises.
+    function toggleApiAdgang(btn, poc, cur){
+      if(!session) return;
+      var next=(cur==="laast")?"aaben":"laast";
+      btn.disabled=true;
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/api-adgang",{
+        method:"POST", headers:{ Authorization:"Bearer "+session, "Content-Type":"application/json" },
+        body:JSON.stringify({ api_adgang: next })
+      }).then(function(r){
+        btn.disabled=false;
+        if(r.status===401){ session=null; openLogin(); return; }
+        if(!r.ok){ adgMsg(poc,"err","Kunne ikke ændre API-låsen (kræver at siderne er låst først)."); return; }
+        var laast=(next==="laast");
+        btn.setAttribute("data-apiadgcur",next);
+        btn.className="cp-privtrack "+(laast?"cp-privtrack--priv":"cp-privtrack--pub");
+        var t=btn.querySelector(".cp-privtext"); if(t) t.textContent=(laast?"Låst":"Åben");
+        var k=btn.querySelector(".cp-privknob"); if(k) k.innerHTML=padlockSvg(laast);
+        // Ærlig forudsætning i selve kvitteringen: låsen virker kun hvis appen sender tokenet med.
+        adgMsg(poc,"ok",laast
+          ? "Husk GENUDGIV. NB: appen skal bruge skabelonens aiaoFetch (v0.15+), ellers fejler dens egne API-kald."
+          : "Husk GENUDGIV — API-låsen fjernes ved næste udgivelse.");
+      }).catch(function(){ btn.disabled=false; adgMsg(poc,"err","Kunne ikke ændre API-låsen."); });
     }
     function sletMsg(poc,cls,html){ var el=document.getElementById("sletmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
     function reqDel(poc){
