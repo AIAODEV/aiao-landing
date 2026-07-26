@@ -447,11 +447,25 @@
     function padlockSvg(locked){ return locked
       ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
       : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'; }
+    // Adgangs-slider (AIAO-login) — kun egne kort (r.is_mine). Står FØR privacy-slideren og bærer
+    // rækkens margin-left:auto; privacy-sliderens egen auto-margin nulstilles inline (to .cp-privtoggle
+    // i samme flex-række deler ellers friarealet ligeligt → denne strander midt i rækken). Klik → data-adg.
+    function adgtoggle(r){
+      if(!r.is_mine) return "";
+      var laast=(r.adgang==="laast");
+      return '<span class="cp-privtoggle"><span class="cp-privlabel">Login</span>'+
+        '<button type="button" class="cp-privtrack '+(laast?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
+        'data-adg="'+esc(r.poc)+'" data-adgcur="'+(laast?"laast":"aaben")+'" '+
+        'title="Låst = appen kræver AIAO-login. Træder i kraft ved næste genudgivelse.">'+
+        '<span class="cp-privtext">'+(laast?"Låst":"Åben")+"</span>"+
+        '<span class="cp-privknob">'+padlockSvg(laast)+"</span></button></span>";
+    }
     // Privacy-slider — kun på egne kort (r.is_mine, dvs. indlogget ejer). Klik → data-vis-handler.
+    // margin-left:0 inline: adgangs-slideren (altid vist sammen med denne) bærer auto-marginen.
     function privtoggle(r){
       if(!r.is_mine) return "";
       var priv=(r.synlighed==="private");
-      return '<span class="cp-privtoggle"><span class="cp-privlabel">Privat</span>'+
+      return '<span class="cp-privtoggle" style="margin-left:0"><span class="cp-privlabel">Privat</span>'+
         '<button type="button" class="cp-privtrack '+(priv?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
         'data-vis="'+esc(r.poc)+'" data-syn="'+(priv?"private":"public")+'" '+
         'title="Privat = kun du + admins ser POC\'en. Offentlig = synlig for alle på aiao.dev/repos.">'+
@@ -485,7 +499,9 @@
       var prov='<div class="cp-provrow">'+
         provchip(r.has_github,"GitHub")+provchip(r.has_vercel,"Vercel")+
         provchip(r.has_railway,"Railway")+provchip(r.has_supabase,"Supabase")+
-        provchip(r.is_live,"Live")+privtoggle(r)+"</div>";
+        provchip(r.is_live,"Live")+adgtoggle(r)+privtoggle(r)+"</div>"+
+        // Efemer note-plads til adgangs-slideren (kun egne kort): "husk genudgivelse" efter toggle.
+        (r.is_mine?'<div class="docmsg" id="adgmsg-'+encodeURIComponent(r.poc)+'" style="min-height:0;margin-top:0"></div>':"");
       var actions="";
       if(r.live_url) actions+='<a class="cp-btn cp-btn--live" href="'+esc(r.live_url)+'" target="_blank" rel="noopener noreferrer" title="Åbner den kørende app i en ny fane">'+ICONS.ext+"ÅBN</a>";
       // Top-højre: grøn "ÅBN TEST" når POC'en er på test (åbn-handling). "Anmod om test" er en
@@ -723,6 +739,8 @@
       if(act){ e.stopPropagation(); requestDoc(act.getAttribute("data-poc"), act.getAttribute("data-act"), act); return; }
       var vis=e.target.closest("[data-vis]");
       if(vis){ e.stopPropagation(); toggleVis(vis.getAttribute("data-vis"), vis.getAttribute("data-syn")); return; }
+      var adg=e.target.closest("[data-adg]");
+      if(adg){ e.stopPropagation(); toggleAdgang(adg, adg.getAttribute("data-adg"), adg.getAttribute("data-adgcur")); return; }
       var rq=e.target.closest("[data-reqdel]");
       if(rq){ e.stopPropagation(); reqDel(rq.getAttribute("data-reqdel")); return; }
       var cd=e.target.closest("[data-canceldel]");
@@ -835,6 +853,29 @@
         body:JSON.stringify({ synlighed: next })
       }).then(function(r){ if(r.status===401){ session=null; openLogin(); return; } loadRepos(); })
         .catch(function(){ loadRepos(); });
+    }
+    // Adgangs-lås (AIAO-login): POST /pocs/{poc}/adgang (samme ejer-token-mønster som synlighed).
+    // Slideren flippes LOKALT (ingen reload) + en efemer note minder om genudgivelsen — låsen
+    // håndhæves i appens middleware og træder først i kraft ved næste udgivelse.
+    function adgMsg(poc,cls,html){ var el=document.getElementById("adgmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
+    function toggleAdgang(btn, poc, cur){
+      if(!session) return;
+      var next=(cur==="laast")?"aaben":"laast";
+      btn.disabled=true;
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/adgang",{
+        method:"POST", headers:{ Authorization:"Bearer "+session, "Content-Type":"application/json" },
+        body:JSON.stringify({ adgang: next })
+      }).then(function(r){
+        btn.disabled=false;
+        if(r.status===401){ session=null; openLogin(); return; }
+        if(!r.ok){ adgMsg(poc,"err","Kunne ikke ændre adgangs-låsen."); return; }
+        var laast=(next==="laast");
+        btn.setAttribute("data-adgcur",next);
+        btn.className="cp-privtrack "+(laast?"cp-privtrack--priv":"cp-privtrack--pub");
+        var t=btn.querySelector(".cp-privtext"); if(t) t.textContent=(laast?"Låst":"Åben");
+        var k=btn.querySelector(".cp-privknob"); if(k) k.innerHTML=padlockSvg(laast);
+        adgMsg(poc,"ok","Husk GENUDGIV — låsen træder først i kraft ved næste udgivelse.");
+      }).catch(function(){ btn.disabled=false; adgMsg(poc,"err","Kunne ikke ændre adgangs-låsen."); });
     }
     function sletMsg(poc,cls,html){ var el=document.getElementById("sletmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
     function reqDel(poc){
