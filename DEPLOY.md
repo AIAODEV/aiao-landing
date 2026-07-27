@@ -113,3 +113,19 @@ flowet på `aiao.dev/flow`, oversigten på `aiao.dev/repos`.
 
 Rediger **ikke** disse filer direkte — de er kompilerede. Lav ændringer i
 design-system-projektet (`ui_kits/aiao-dev/`) og gen-kompiler.
+
+## Favicon
+
+`/favicon.ico` i roden er sidens ikon for **alle** sider, og hver side har en eksplicit
+`<link rel="icon" href="/favicon.ico" sizes="any">` i sin `<head>` (indsat i den ALMINDELIGE
+tekst-head — ingen bundle-kirurgi).
+
+Baggrund: de kompilerede sider (index/flow/byg/ledelse/arkitektur) bar allerede et ikon *inde i*
+bundlen som en UUID-asset, mens de håndskrevne sider (`start.html`, `repos.html`) ikke gjorde —
+derfor manglede `/start` et faneblads-ikon, og `/favicon.ico` svarede 404.
+
+Ikonet er **det samme logo som topbaren viser**: `favicon.ico` er genereret ud af den base64-PNG
+der står i topbar-markup'en (256×256, pakket i en ægte ICO-container med PNG-payload). Skal det
+skiftes, så skift logoet og gen-generér ikonet ud fra det — så kan de to ikke komme ud af sync.
+`favicon.ico` er bevidst undtaget fra Entra-gaten i `middleware.ts` (matcheren), så ikonet også
+kan hentes uden session.
