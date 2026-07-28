@@ -417,6 +417,21 @@
     </div>
   </div>
 
+  <!-- Længde-valget før et oplæg genereres. Spørgsmålet er bevidst om MØDET, ikke om POC'ens
+       størrelse: omfanget følger indholdet af sig selv, men hvor lang tid man har, ved kun byggeren.
+       Samme modal-mønster (modal-bg/.modal/.row/.btn) som "Anmod om test" og "Anmod om ny POC". -->
+  <div class="modal-bg" id="praesBg">
+    <div class="modal">
+      <h3>Hvor langt skal oplægget være?</h3>
+      <p>Begge udgaver indeholder det samme grundlag — også afgrænsning og næste skridt. Den korte har færre punkter pr. slide.</p>
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn" id="praes-kort" title="Til et kort punkt på et møde — færre punkter pr. slide">Kort oplæg (5 min)</button>
+        <button class="btn primary" id="praes-fuld" title="Til en gennemgang hvor tilhørerne ikke kender projektet">Fuldt oplæg</button>
+        <button class="btn" id="praes-cancel">Annullér</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     var API = "https://aiao-control-plane-production.up.railway.app";
     var GITHUB_ORG = "AIAODEV";
@@ -435,6 +450,10 @@
       brugerguide:{aabn:"Viser brugerguiden — hentes frisk fra projektet",igen:"Skriver brugerguiden igen ud fra den nyeste kode",lav:"AI skriver en brugerguide til slutbrugere og gemmer den i projektet"},
       loesningsbeskrivelse:{aabn:"Viser løsningsbeskrivelsen — hentes frisk fra projektet",igen:"Skriver løsningsbeskrivelsen igen ud fra den nyeste kode",lav:"AI skriver en løsningsbeskrivelse til interessenter og gemmer den i projektet"},
       snyk:{aabn:"Viser sikkerhedsrapporten — hentes frisk fra projektet",igen:"Scanner koden for sikkerhedshuller — rapporten gemmes i projektet",lav:"Beder Snyk hente og scanne koden — rapporten gemmes i projektet (første gang tager det et par minutter)"},
+      // Præsentation har bevidst INGEN `aabn` (og ingen ÅBN-knap): manuskriptet er talepapir og
+      // ligger ikke i den login-frie /public/docs-vej, så en ÅBN-knap her ville svare 404.
+      // `hent` er dens modstykke — ÅBN af manuskriptet findes på admin-dashboardet (authet kald).
+      praesentation:{hent:"Henter oplægget som PowerPoint-fil du kan åbne og rette",igen:"Skriver oplægget igen ud fra den nyeste kode",lav:"AI skriver et oplæg om POC'en du kan bruge til et møde"},
       resume:"AI læser projektet og skriver et kort resumé — tager under et minut"
     };
     var grid = document.getElementById("grid");
@@ -511,6 +530,21 @@
     }
     function ts2(txt){ return txt?'<div class="cp-docrow2__ts">'+esc(txt)+"</div>":""; }
     function tsMissing2(txt){ return '<div class="cp-docrow2__ts cp-docrow2__ts--missing">'+esc(txt)+"</div>"; }
+    // HENT (.pptx) — bygges server-side af manuskriptet ved hvert kald, så en rettelse i teksten
+    // slår igennem med det samme. `navn` bliver filnavnet (slug'en, som serverens eget
+    // Content-Disposition også bruger) og bæres på knappen, så hentPraes ikke skal kende rækken.
+    function hentBtn(poc,navn){
+      return '<button class="cp-btn cp-btn--live" data-hent="'+esc(poc)+'" data-navn="'+esc(navn||poc)+'" '+
+        'title="'+esc(HJAELP.praesentation.hent)+'">HENT</button>';
+    }
+    // Hvad der står i den faste venstre-kolonne når en række HAR et resultat: de læsbare dokumenter
+    // får ÅBN (login-frit /public/docs), præsentationen får HENT (ingen ÅBN — se HJAELP-noten).
+    // Bruges BÅDE ved kort-render og af runDoc efter en succesfuld generering, så de to kan ikke
+    // komme ud af sync. Ukendte kinds falder tilbage til ÅBN (uændret adfærd for brugerguide m.fl.).
+    function openCellHtml(kind,poc,navn){
+      if(kind==="praesentation") return hentBtn(poc,navn);
+      return '<button class="cp-btn cp-btn--live" data-view="'+esc(kind)+'" data-poc="'+esc(poc)+'" title="'+esc(HJAELP[kind]?HJAELP[kind].aabn:"")+'">'+ICONS.ext+"ÅBN</button>";
+    }
     function card(r){
       var handle=handleOf(r);
       var title=r.slug||r.poc;  // titel = POC'ens offentlige adresse-navn (slug); legacy: slug = pocN
@@ -567,6 +601,21 @@
         return row2("Sikkerhed","Snyk-rapport",tsMissing2("endnu ikke kørt"),"",
           '<button class="cp-btn cp-btn--live" data-act="snyk" data-poc="'+poc+'" title="'+esc(HJAELP.snyk.lav)+'">HENT SNYK-RAPPORT</button>');
       }
+      // Præsentation (OPLÆG): KUN egne kort. Tidsstemplet sendes kun for kalderens egne POC'er
+      // (serveren sender null for andres, og klienten kan ikke skelne "intet oplæg" fra "ikke dit
+      // kort") → rækken ville være tom og forvirrende for alle andre. HENT er grøn i ÅBN-kolonnen;
+      // der er BEVIDST ingen ÅBN af manuskriptet her (den login-frie doc-vej dækker det ikke).
+      function praesRow2(ts){
+        if(!r.is_mine) return "";
+        var poc=esc(r.poc);
+        if(ts){
+          return row2("Oplæg","Præsentation",ts2("senest "+fmtDate(ts)),
+            openCellHtml("praesentation",r.poc,title),
+            '<button class="cp-btn cp-btn--ghost" data-praes="'+poc+'" data-navn="'+esc(title)+'" title="'+esc(HJAELP.praesentation.igen)+'">GENGENERÉR</button>');
+        }
+        return row2("Oplæg","Præsentation",tsMissing2("endnu ikke genereret"),"",
+          '<button class="cp-btn cp-btn--live" data-praes="'+poc+'" data-navn="'+esc(title)+'" title="'+esc(HJAELP.praesentation.lav)+'">LAV PRÆSENTATION</button>');
+      }
       var resumeRow=row2("Resumé (AI)","Resumé",
         r.ai_resume?ts2("genereret"):tsMissing2("endnu ikke genereret"),"",
         '<button class="cp-btn cp-btn--'+(r.ai_resume?"ghost":"live")+'" data-act="resume" data-poc="'+esc(r.poc)+'" title="'+esc(HJAELP.resume)+'">'+(r.ai_resume?"GENGENERÉR RESUMÉ":"GENERÉR RESUMÉ")+"</button>",
@@ -577,6 +626,7 @@
         docRow2("Brugerguide","Brugerguide","brugerguide","BRUGERGUIDE",r.brugerguide_opdateret)+
         docRow2("Løsningsbeskrivelse","Løsningsbeskrivelse","loesningsbeskrivelse","LØSNINGSBESKRIVELSE",r.loesningsbeskrivelse_opdateret)+
         snykRow2(r.snyk_opdateret)+
+        praesRow2(r.praesentation_opdateret)+
         '<div class="docmsg" id="docmsg-'+pe+'" style="min-height:0;margin-top:0"></div>'+
       "</div>";
       // "Anmod om test" (rød) bor i detaljerne — kun poc-stadiet, ejer/admin (server håndhæver). Sjælden
@@ -757,6 +807,12 @@
       if(view){ e.stopPropagation(); requestView(view.getAttribute("data-poc"), view.getAttribute("data-view")); return; }
       var act=e.target.closest("[data-act]");
       if(act){ e.stopPropagation(); requestDoc(act.getAttribute("data-poc"), act.getAttribute("data-act"), act); return; }
+      // Præsentation: generering går gennem længde-dialogen først (data-praes), download er sit eget
+      // kald (data-hent) — derfor egne attributter i stedet for den generiske data-act-vej.
+      var praes=e.target.closest("[data-praes]");
+      if(praes){ e.stopPropagation(); requestPraes(praes.getAttribute("data-praes"), praes); return; }
+      var hent=e.target.closest("[data-hent]");
+      if(hent){ e.stopPropagation(); requestHent(hent.getAttribute("data-hent"), hent); return; }
       var vis=e.target.closest("[data-vis]");
       if(vis){ e.stopPropagation(); toggleVis(vis.getAttribute("data-vis"), vis.getAttribute("data-syn")); return; }
       var adg=e.target.closest("[data-adg]");
@@ -856,7 +912,7 @@
     var session=null, authCfg=null, pending=null;
     var loginBg=document.getElementById("loginBg");
     var liEmail=document.getElementById("li-email"), liPw=document.getElementById("li-pw"), liErr=document.getElementById("li-err");
-    var LABEL={brugerguide:"brugerguide", loesningsbeskrivelse:"løsningsbeskrivelse", snyk:"Snyk-rapport"};
+    var LABEL={brugerguide:"brugerguide", loesningsbeskrivelse:"løsningsbeskrivelse", snyk:"Snyk-rapport", praesentation:"oplæg"};
 
     function docMsg(poc,cls,html){ var el=document.getElementById("docmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
     function getAuthCfg(){
@@ -959,7 +1015,9 @@
       pending={poc:poc,kind:kind};
       openLogin();
     }
-    function runDoc(poc,kind,btn,attempt){
+    // `body` (valgfri) sendes som JSON i POST'en — bruges af præsentationen ({laengde:"kort"|"fuld"}).
+    // De øvrige kinds kalder uændret uden body (serverne dér tager ingen parametre).
+    function runDoc(poc,kind,btn,attempt,body){
       attempt=attempt||0;
       // Resumé har eget endpoint (/ai-resume) + egen besked-boks; docs/snyk går til /docs/{kind}.
       var isResume=(kind==="resume");
@@ -980,16 +1038,20 @@
       var succeeded=false, retrying=false;
       if(btn){ btn.disabled=true; btn.classList.add("cp-btn--wait");
         btn.innerHTML=ICONS.spin+" "+(kind==="snyk"?"SCANNER …":"GENERERER …"); }
-      if(putWait) openCell.innerHTML='<button class="cp-btn cp-btn--ghost cp-btn--wait" disabled title="Genereres — Åbn-knappen kommer her">'+ICONS.spin+"</button>";
+      if(putWait) openCell.innerHTML='<button class="cp-btn cp-btn--ghost cp-btn--wait" disabled title="Genereres — '+(kind==="praesentation"?"Hent":"Åbn")+'-knappen kommer her">'+ICONS.spin+"</button>";
       function say(cls,html){
         if(isResume){ var el=document.getElementById("docmsg-"+encodeURIComponent(poc)+"-resume");
           if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
         else docMsg(poc,cls,html);
       }
       say("",(isResume?"Genererer resumé …":(kind==="snyk"?"Kører Snyk-scan …":"Genererer "+(LABEL[kind]||"dokument")+" …")));
-      fetch(url,{ method:"POST", headers:{ Authorization:"Bearer "+session } })
+      var opts={ method:"POST", headers:{ Authorization:"Bearer "+session } };
+      if(body){ opts.headers["Content-Type"]="application/json"; opts.body=JSON.stringify(body); }
+      fetch(url,opts)
         .then(function(r){
-          if(r.status===401){ session=null; pending={poc:poc,kind:kind}; say("err","Session udløbet — log ind igen."); openLogin(); return null; }
+          // Bær `body` med i pending: ellers ville et gen-forsøg efter login sende oplægget uden
+          // det valgte omfang (serveren defaulter til "fuld") — brugerens valg må ikke forsvinde.
+          if(r.status===401){ session=null; pending={poc:poc,kind:kind,body:body}; say("err","Session udløbet — log ind igen."); openLogin(); return null; }
           if(r.status===403){ say("err","Kun POC'ens ejer eller en admin kan dette."); return null; }
           if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){
             var err=new Error(j.detail||("Fejl ("+r.status+")"));
@@ -1014,8 +1076,9 @@
             say("ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>.");
             if(btn){ btn.textContent=(kind==="snyk"?"KØR IGEN":"GENGENERÉR"); if(HJAELP[kind]) btn.title=HJAELP[kind].igen; }
             toGhost();
-            // Rækken opgraderes til "findes"-tilstand: grøn ÅBN i den faste kolonne + frisk tidsstempel.
-            if(openCell) openCell.innerHTML='<button class="cp-btn cp-btn--live" data-view="'+esc(kind)+'" data-poc="'+esc(poc)+'" title="'+esc(HJAELP[kind]?HJAELP[kind].aabn:"")+'">'+ICONS.ext+"ÅBN</button>";
+            // Rækken opgraderes til "findes"-tilstand: grøn ÅBN (præsentation: HENT) i den faste
+            // kolonne + frisk tidsstempel.
+            if(openCell) openCell.innerHTML=openCellHtml(kind,poc,btn?btn.getAttribute("data-navn"):null);
             if(tsCell){ tsCell.textContent="netop genereret"; tsCell.classList.remove("cp-docrow2__ts--missing"); }
           }
         })
@@ -1026,7 +1089,7 @@
             retrying=true;
             var min=Math.max(1,Math.round(e.retryS/60));
             say("",esc(e.message)+" Prøver igen automatisk om ca. "+min+" min (forsøg "+(attempt+2)+" af 5) — du kan roligt gå fra skærmen.");
-            setTimeout(function(){ runDoc(poc,kind,btn,attempt+1); },e.retryS*1000);
+            setTimeout(function(){ runDoc(poc,kind,btn,attempt+1,body); },e.retryS*1000);
             return;
           }
           if(kind==="snyk"&&e&&e.retryS){ say("err","Snyk blev ikke færdig inden for ca. 10 minutter — prøv igen om lidt."); return; }
@@ -1038,6 +1101,62 @@
             if(!succeeded&&prevBtnHtml!=null) btn.innerHTML=prevBtnHtml;
             delete btn.dataset.origHtml; }
           if(!succeeded&&putWait) openCell.innerHTML="";
+        });
+    }
+
+    // ── Præsentation (OPLÆG): generér manuskript med valgt længde + hent .pptx'en ───────────────
+    // Generering er ejer/admin (POST /pocs/{poc}/docs/praesentation med {laengde}); download kræver
+    // blot login (GET /pocs/{poc}/praesentation.pptx). Serveren håndhæver begge — samme login/
+    // pending-mønster som de øvrige ejer-handlinger.
+    var praesBg=document.getElementById("praesBg");
+    var praesState=null; // { poc, btn } — hvilken række dialogen hører til
+    function requestPraes(poc,btn){
+      if(!session){ pending={poc:poc,praes:true}; openLogin(); return; }
+      praesState={ poc:poc, btn:btn };
+      praesBg.classList.add("show");
+    }
+    function closePraes(){ praesBg.classList.remove("show"); praesState=null; }
+    function vaelgLaengde(l){
+      if(!praesState) return;
+      var s=praesState;
+      closePraes();  // luk FØR generering, så arbejdstilstanden i rækken er synlig
+      runDoc(s.poc,"praesentation",s.btn,0,{ laengde:l });
+    }
+    document.getElementById("praes-kort").addEventListener("click",function(){ vaelgLaengde("kort"); });
+    document.getElementById("praes-fuld").addEventListener("click",function(){ vaelgLaengde("fuld"); });
+    document.getElementById("praes-cancel").addEventListener("click",function(){ closePraes(); });
+    praesBg.addEventListener("click",function(e){ if(e.target===praesBg) closePraes(); });
+
+    function requestHent(poc,btn){
+      if(!session){ pending={poc:poc,hent:true}; openLogin(); return; }
+      hentPraes(poc,btn);
+    }
+    // .pptx'en bygges server-side ud af manuskriptet ved hvert kald. Browseren har ingen "gem fil"-API
+    // vi kan kalde direkte — et midlertidigt objekt-URL på et skjult <a download> er standardvejen;
+    // URL'en frigives igen, ellers holdes blob'en i hukommelsen.
+    function hentPraes(poc,btn){
+      var prev=btn?btn.innerHTML:null;
+      if(btn){ btn.disabled=true; btn.classList.add("cp-btn--wait"); btn.innerHTML=ICONS.spin+" HENTER …"; }
+      docMsg(poc,"","Bygger PowerPoint-filen …");
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/praesentation.pptx",{ headers:{ Authorization:"Bearer "+session } })
+        .then(function(r){
+          if(r.status===401){ session=null; pending={poc:poc,hent:true}; docMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
+          if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
+          return r.blob();
+        })
+        .then(function(blob){
+          if(!blob) return;
+          var navn=(btn&&btn.getAttribute("data-navn"))||poc;
+          var url=URL.createObjectURL(blob);
+          var a=document.createElement("a");
+          a.href=url; a.download=navn+"-praesentation.pptx";
+          document.body.appendChild(a); a.click(); a.parentNode.removeChild(a);
+          URL.revokeObjectURL(url);
+          docMsg(poc,"ok","✓ Oplægget er hentet — åbn filen i PowerPoint.");
+        })
+        .catch(function(e){ docMsg(poc,"err",esc(e&&e.message?e.message:"Kunne ikke hente filen.")); })
+        .finally(function(){
+          if(btn){ btn.disabled=false; btn.classList.remove("cp-btn--wait"); if(prev!=null) btn.innerHTML=prev; }
         });
     }
 
@@ -1239,7 +1358,11 @@
           var p=pending; pending=null;
           if(p&&p.promote){ startPromoteFlow(p.poc); }
           else if(p&&p.requestPoc){ openReq(); }
-          else if(p&&p.kind){ runDoc(p.poc,p.kind, document.querySelector('[data-act="'+p.kind+'"][data-poc="'+p.poc+'"]')); }
+          else if(p&&p.praes){ requestPraes(p.poc, document.querySelector('[data-praes="'+p.poc+'"]')); }
+          else if(p&&p.hent){ hentPraes(p.poc, document.querySelector('[data-hent="'+p.poc+'"]')); }
+          // Præsentationens knap bærer data-praes (ikke data-act) → find den som fallback, så et
+          // gen-forsøg efter en udløbet session stadig har sin knap at vise arbejdstilstanden på.
+          else if(p&&p.kind){ runDoc(p.poc,p.kind, document.querySelector('[data-act="'+p.kind+'"][data-poc="'+p.poc+'"]')||document.querySelector('[data-praes="'+p.poc+'"]'), 0, p.body); }
           else { loadRepos(); }  // reveal/almindeligt login → re-fetch authed: egne private + is_mine-kontroller
         })
         .catch(function(e){ if(e&&e.message&&e.message!=="no-config") liErr.textContent=e.message; });
