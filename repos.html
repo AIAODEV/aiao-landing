@@ -1145,7 +1145,11 @@
     // URL'en frigives igen, ellers holdes blob'en i hukommelsen.
     function hentPraes(poc,btn){
       var prev=btn?btn.innerHTML:null;
-      if(btn){ btn.disabled=true; btn.classList.add("cp-btn--wait"); btn.innerHTML=ICONS.spin+" HENTER …"; }
+      // KUN spinneren (samme udtryk som vente-pladsholderen i runDoc): "HENTER …" er bredere end den
+      // faste 84px ÅBN-kolonne, så knappen ombrød til to linjer (målt 46px mod 28px) og voksede
+      // synligt de sekunder serveren byggede .pptx'en. Knappens `title` bliver stående, så
+      // tilstanden stadig kan forklares ved hvile.
+      if(btn){ btn.disabled=true; btn.classList.add("cp-btn--wait"); btn.innerHTML=ICONS.spin; }
       docMsg(poc,"","Bygger PowerPoint-filen …");
       fetch(API+"/pocs/"+encodeURIComponent(poc)+"/praesentation.pptx",{ headers:{ Authorization:"Bearer "+session } })
         .then(function(r){

@@ -54,8 +54,8 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 > "meldte" slidere på et kort der ikke havde nogen. Tæl `data-`attributter, eller brug
 > `closest('.cp-card')` inde i siden.
 
-> **NB (status pr. 2026-07-02):** `repos.html` er i dag den eneste HÅND-skrevne
-> standalone-side (vedligeholdelig kilde — kan redigeres direkte); `byg.html` er
+> **NB (status pr. 2026-07-02):** `repos.html` og `start.html` er de eneste HÅND-skrevne
+> standalone-sider (vedligeholdelig kilde — kan redigeres direkte); `byg.html` er
 > siden blevet en kompileret bundle som `index/flow`. Menu-ændringer i de
 > kompilerede sider sker via bundle-kirurgi: nav-linket indsættes i BÅDE
 > Topbar-entryens rå JSX og den transpilerede mega-entry (begge sætter
@@ -90,7 +90,18 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 > **Præsentation**-række: **LAV PRÆSENTATION** første gang, derefter grøn **HENT** (PowerPoint-filen,
 > `GET /pocs/{poc}/praesentation.pptx`) + hvid **GENGENERÉR**. Genereringen spørger først om længden
 > i en dialog (`#praesBg`) og sender `{"laengde":"kort"|"fuld"}` til
-> `POST /pocs/{poc}/docs/praesentation`. To invarianter der er nemme at bryde:
+> `POST /pocs/{poc}/docs/praesentation`.
+>
+> ⚠️ **Rækkefølge: rækken forudsætter at CONTROL-PLANEN er deployet FØRST** — den læser feltet
+> `praesentation_opdateret` på `/public/repos`. Pushes denne side før backenden, mangler feltet, og
+> hvert af byggerens EGNE kort viser "endnu ikke genereret" + **LAV PRÆSENTATION** — også for POC'er
+> der HAR et oplæg; klikker han LAV, overskrives det `docs/praesentation.md` han eventuelt har
+> hånd-rettet. Den omvendte rækkefølge (backend først, Landing senere) er derimod **uskadelig** —
+> feltet ligger blot ubrugt i JSON'en. NB: repoet har ingen grenkonvention — alt ligger på `main`, så
+> et hastefix på fx `byg.html` trækker ALLE tidligere `main`-commits med ud (også denne række).
+> Kør `git log origin/main..main` før du pusher, så du ved hvad der følger med.
+>
+> To invarianter der er nemme at bryde:
 > 1. **Der må ALDRIG være en ÅBN-knap (`data-view="praesentation"`) på denne side.** Manuskriptet
 >    indeholder talepapir og ligger bevidst UDEN for den login-frie `/public/docs`-vej → et ÅBN her
 >    ville svare 404. Derfor har `HJAELP.praesentation` ingen `aabn`-nøgle, og `openCellHtml()`
