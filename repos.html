@@ -1034,7 +1034,16 @@
       if(btn&&!btn.dataset.origHtml) btn.dataset.origHtml=btn.innerHTML;
       var prevBtnHtml=btn?btn.dataset.origHtml:null;
       // Genkend også vores egen vente-pladsholder fra et tidligere forsøg som "vores" kolonne.
-      var putWait=!!(openCell&&!isResume&&(openCell.innerHTML.replace(/\s/g,"")===""||openCell.querySelector(".cp-btn--wait")));
+      // Kolonnens indhold FØR arbejdstilstanden — gendannes ved FEJL, så en fejlet GENGENERÉR ikke
+      // efterlader byggeren uden HENT-knap til det oplæg der stadig ligger i repoet. Vores egen
+      // vente-pladsholder (Snyks auto-genforsøg) må aldrig gendannes → læs den som tom.
+      var prevOpenHtml=(openCell&&!openCell.querySelector(".cp-btn--wait"))?openCell.innerHTML:"";
+      // Præsentationen ALTID: dens kolonne bærer HENT, som leverer en fil ud af browseren. Stod den
+      // klikbar under en gen-generering, ville byggeren tavst få det GAMLE oplæg (serveren bygger
+      // .pptx'en af det manuskript der ligger i repoet lige nu) — og succes-kvitteringen bagefter
+      // læses som bekræftelse på netop den fil. Et forkert deck til mødet er dét featuren skal
+      // forhindre, så knappen erstattes af vente-pladsholderen mens der genereres.
+      var putWait=!!(openCell&&!isResume&&(kind==="praesentation"||openCell.innerHTML.replace(/\s/g,"")===""||openCell.querySelector(".cp-btn--wait")));
       var succeeded=false, retrying=false;
       if(btn){ btn.disabled=true; btn.classList.add("cp-btn--wait");
         btn.innerHTML=ICONS.spin+" "+(kind==="snyk"?"SCANNER …":"GENERERER …"); }
@@ -1100,7 +1109,7 @@
           if(btn){ btn.disabled=false; btn.classList.remove("cp-btn--wait");
             if(!succeeded&&prevBtnHtml!=null) btn.innerHTML=prevBtnHtml;
             delete btn.dataset.origHtml; }
-          if(!succeeded&&putWait) openCell.innerHTML="";
+          if(!succeeded&&putWait) openCell.innerHTML=prevOpenHtml;
         });
     }
 

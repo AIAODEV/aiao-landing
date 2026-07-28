@@ -86,6 +86,28 @@ komponent-bundle indlejret — ingen build, ingen afhængigheder at installere.
 > med iframe-src stubbet til en tall placeholder) for at bekræfte layout uden at scrolle.
 > Bekræft altid visuelt efter deploy (git-reversibelt).
 
+> **NB (2026-07-28) — OPLÆG-rækken på `/repos`:** kortenes Dokumentation-panel har nu en
+> **Præsentation**-række: **LAV PRÆSENTATION** første gang, derefter grøn **HENT** (PowerPoint-filen,
+> `GET /pocs/{poc}/praesentation.pptx`) + hvid **GENGENERÉR**. Genereringen spørger først om længden
+> i en dialog (`#praesBg`) og sender `{"laengde":"kort"|"fuld"}` til
+> `POST /pocs/{poc}/docs/praesentation`. To invarianter der er nemme at bryde:
+> 1. **Der må ALDRIG være en ÅBN-knap (`data-view="praesentation"`) på denne side.** Manuskriptet
+>    indeholder talepapir og ligger bevidst UDEN for den login-frie `/public/docs`-vej → et ÅBN her
+>    ville svare 404. Derfor har `HJAELP.praesentation` ingen `aabn`-nøgle, og `openCellHtml()`
+>    sætter HENT i kolonnen hvor de øvrige dokumenter har ÅBN. ÅBN af manuskriptet findes på
+>    `admin.aiao.dev` (dér er kaldet autentificeret).
+> 2. **Rækken rendres kun ved `r.is_mine`** (`praesRow2` returnerer "" ellers): backenden sender kun
+>    `praesentation_opdateret` for kalderens EGNE POC'er, så `null` betyder både "intet oplæg" og
+>    "ikke dit kort" — klienten kan ikke skelne, og rækken ville stå tom og forvirrende for andre.
+>
+> Præsentationen er BEVIDST ikke med i forfremmelses-gaten (`promoMissing`) — den ville ellers
+> blokere "Anmod om test" for alle POC'er uden oplæg. Længde-dialogens tekster (overskrift,
+> forklaring, de to knap-labels + tooltips) er ordret admin-dashboardets
+> `PresentationLengthDialog.tsx` — **hold de to i sync**, som med kort-designet og
+> forfremmelses-loggen. HENT er desuden erstattet af vente-pladsholderen mens der genereres
+> (`putWait` er altid sand for denne kind): stod den klikbar, ville man tavst hente det GAMLE
+> oplæg og tro at succes-kvitteringen bagefter gjaldt filen man lige fik.
+
 > React + Babel hentes fra unpkg-CDN ved runtime (kræver internet — fint for et
 > live site). Alt andet er indlejret.
 
@@ -111,8 +133,16 @@ flowet på `aiao.dev/flow`, oversigten på `aiao.dev/repos`.
 
 ## Ændringer
 
-Rediger **ikke** disse filer direkte — de er kompilerede. Lav ændringer i
-design-system-projektet (`ui_kits/aiao-dev/`) og gen-kompiler.
+**To slags sider — vær sikker på hvilken du redigerer:**
+
+- **Hånd-skrevne (redigeres DIREKTE):** `repos.html` og `start.html`. Der findes ingen kilde
+  bag dem; filen ER kilden. Alle NB-blokkene ovenfor om `/repos` gælder her.
+- **Kompilerede bundles (redigér IKKE direkte):** `index.html`, `flow.html`, `byg.html`,
+  `ledelse.html`, `arkitektur.html`. De består af en JSON-manifest med gzip+base64-entries.
+  Lav ændringer i design-system-projektet (`ui_kits/aiao-dev/`) og gen-kompilér — eller, hvis
+  kilden ikke er ved hånden, via bundle-kirurgi (gunzip → redigér BÅDE den rå JSX-entry og dens
+  transpilerede tvilling → esbuild-validér → re-encode → round-trip-verificér), se NB'en om
+  menu-ændringer ovenfor.
 
 ## Favicon
 
