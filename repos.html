@@ -614,7 +614,20 @@
       // kolonnen — nøjagtig som admin-dashboardets PocCard — fordi ÅBN-kolonnen er 84px og ikke
       // rummer to knapper ved siden af hinanden.
       function praesRow2(ts){
-        if(!r.is_mine) return "";
+        // ⚠️ IKKE LOGGET IND: vis en NEUTRAL "log ind"-række på ALLE kort. Uden den var featuren
+        // usynlig for præcis den den er lavet til — en bygger der lander på /repos uden session ser
+        // brugerguiden (login-fri) men INTET om oplæg, og kan ikke gætte at der er noget at logge
+        // ind efter. Ejer-fund JAW 2026-07-29: "muligheden er ikke til stede".
+        // Rækken lækker intet: den bærer BEVIDST intet tidsstempel, så den kan ikke afsløre OM en
+        // POC har et oplæg (det var hele grunden til at rækken kun vises på egne kort, når vi
+        // først VED hvis kort det er). Knappen logger blot ind og genindlæser — så overtager
+        // `is_mine`-vejen nedenfor, og rækken forsvinder igen på andres kort.
+        if(!r.is_mine){
+          if(session) return "";   // logget ind ⇒ vi VED at kortet ikke er brugerens
+          return row2("Oplæg","Præsentation",tsMissing2("log ind for at se og lave oplæg"),"",
+            '<button class="cp-btn cp-btn--live" data-praeslogin="1" '+
+            'title="Log ind med din AIAO-konto for at lave et oplæg om din egen POC">LOG IND</button>');
+        }
         var poc=esc(r.poc);
         if(ts){
           return row2("Oplæg","Præsentation",ts2("senest "+fmtDate(ts)),
@@ -824,6 +837,10 @@
       if(praes){ e.stopPropagation(); requestPraes(praes.getAttribute("data-praes"), praes); return; }
       var hent=e.target.closest("[data-hent]");
       if(hent){ e.stopPropagation(); requestHent(hent.getAttribute("data-hent"), hent); return; }
+      // "LOG IND" i oplægs-rækken (kun vist uden session): samme reveal-mønster som knappen ved
+      // lead-teksten — log ind og genindlæs listen, hvorefter egne kort bærer den rigtige række.
+      var praesLogin=e.target.closest("[data-praeslogin]");
+      if(praesLogin){ e.stopPropagation(); pending={reveal:true}; openLogin(); return; }
       var vis=e.target.closest("[data-vis]");
       if(vis){ e.stopPropagation(); toggleVis(vis.getAttribute("data-vis"), vis.getAttribute("data-syn")); return; }
       var adg=e.target.closest("[data-adg]");
