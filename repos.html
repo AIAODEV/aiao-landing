@@ -1305,12 +1305,22 @@
     var DOC_TITLE={brugerguide:"Brugerguide", loesningsbeskrivelse:"Løsningsbeskrivelse", snyk:"Snyk-sikkerhedsrapport",
                    praesentation:"Oplæg — manuskript"};
 
-    // ⚠️ Præsentationen er den ENE kind der kræver login (JAW 2026-07-29). Manuskriptet er talepapir
-    // og blev bevidst holdt UDE af den login-frie `/public/docs`-allowliste (`_PUBLIC_KINDS`) —
-    // den grænse er UÆNDRET. ÅBN virker alligevel, fordi den henter gennem det autentificerede
-    // `GET /pocs/{poc}/docs/praesentation` med brugerens egen session, som HENT også gør.
+    // ⚠️ Præsentationen er den ENE kind der ALTID kræver login (JAW 2026-07-29). Manuskriptet er
+    // talepapir og blev bevidst holdt UDE af den login-frie `/public/docs`-allowliste
+    // (`_PUBLIC_KINDS`) — den grænse er UÆNDRET. ÅBN virker alligevel, fordi den henter gennem det
+    // autentificerede `GET /pocs/{poc}/docs/praesentation` med brugerens egen session, som HENT gør.
     // Tilføj derfor ALDRIG "praesentation" til /public/docs for at spare dette login væk.
     var AUTHED_VIEW={praesentation:true};
+
+    // ⚠️ ER DER EN SESSION, BRUGES DEN AUTHEDE VEJ TIL ALT — ellers kan en ejer ikke læse sine EGNE
+    // dokumenter (ejer-fund JAW 2026-07-29, poc59). `/public/docs` kræver `synlighed='public'` og
+    // svarer ellers 404, som klienten viste som "Dokumentet er ikke genereret endnu." Da `private`
+    // er DEFAULT for nye POC'er (migration 0023), var hvert nyt projekts dokumenter altså ulæselige
+    // for sin egen ejer, mens ældre POC'er (backfillet til `public`) virkede — præcis det forvirrende
+    // mønster fejlen blev fundet på. Den authede vej har den rigtige gate (`require_visible_poc`:
+    // ejer/admin/godkender ser private POC'er), så den er strengt bedre når vi HAR et token.
+    // Uden session bruges fortsat den login-frie vej, så gæster kan læse offentlige POC'ers docs.
+    function brugAuthed(kind){ return !!AUTHED_VIEW[kind] || !!session; }
 
     function requestView(poc,kind){
       // Login-pending-mønsteret som de øvrige ejer-handlinger: uden session åbnes login, og
@@ -1323,7 +1333,7 @@
       docMeta.textContent="";
       docBody.textContent="Henter dokumentet fra repoet …";
       docBg.classList.add("show");
-      var authed=!!AUTHED_VIEW[kind];
+      var authed=brugAuthed(kind);
       var url=authed
         ? API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+encodeURIComponent(kind)
         : API+"/public/docs/"+encodeURIComponent(poc)+"/"+encodeURIComponent(kind);
@@ -1334,7 +1344,12 @@
             docBody.textContent="Session udløbet — log ind igen.";
             docBg.classList.remove("show"); openLogin(); return null;
           }
-          if(r.status===404){ docBody.textContent="Dokumentet er ikke genereret endnu."; return null; }
+          // Vis serverens EGEN 404-årsag frem for en fast tekst. Den faste "ikke genereret endnu"
+          // var direkte vildledende: en synligheds-404 ("Ukendt POC") blev læst som at genereringen
+          // manglede — og det var netop dét der gjorde poc59-fejlen svær at se, for dokumenterne VAR
+          // genereret. Er filen reelt fraværende, sender serveren selv samme tekst som før.
+          if(r.status===404) return r.json().catch(function(){ return {}; }).then(function(j){
+            docBody.textContent=j.detail||"Dokumentet er ikke genereret endnu."; return null; });
           if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
           return r.json();
         })
