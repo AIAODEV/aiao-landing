@@ -450,10 +450,13 @@
       brugerguide:{aabn:"Viser brugerguiden — hentes frisk fra projektet",igen:"Skriver brugerguiden igen ud fra den nyeste kode",lav:"AI skriver en brugerguide til slutbrugere og gemmer den i projektet"},
       loesningsbeskrivelse:{aabn:"Viser løsningsbeskrivelsen — hentes frisk fra projektet",igen:"Skriver løsningsbeskrivelsen igen ud fra den nyeste kode",lav:"AI skriver en løsningsbeskrivelse til interessenter og gemmer den i projektet"},
       snyk:{aabn:"Viser sikkerhedsrapporten — hentes frisk fra projektet",igen:"Scanner koden for sikkerhedshuller — rapporten gemmes i projektet",lav:"Beder Snyk hente og scanne koden — rapporten gemmes i projektet (første gang tager det et par minutter)"},
-      // Præsentation har bevidst INGEN `aabn` (og ingen ÅBN-knap): manuskriptet er talepapir og
-      // ligger ikke i den login-frie /public/docs-vej, så en ÅBN-knap her ville svare 404.
-      // `hent` er dens modstykke — ÅBN af manuskriptet findes på admin-dashboardet (authet kald).
-      praesentation:{hent:"Henter oplægget som PowerPoint-fil du kan åbne og rette",igen:"Skriver oplægget igen ud fra den nyeste kode",lav:"AI skriver et oplæg om POC'en du kan bruge til et møde"},
+      // ⚠️ Præsentationen ÅBNES gennem et AUTENTIFICERET kald — ikke den login-frie /public/docs-vej.
+      // Ejer-beslutning JAW 2026-07-29: byggeren skal kunne åbne oplægget HER, som de andre
+      // dokumenter. Den oprindelige udelukkelse (talepapir hører ikke i en login-fri vej) STÅR
+      // stadig — vi flyttede ikke manuskriptet ud i det offentlige; ÅBN henter i stedet via
+      // `GET /pocs/{poc}/docs/praesentation` med brugerens egen session, præcis som HENT.
+      // Rækken vises kun på EGNE kort, så den der trykker er i forvejen en der må se talepapiret.
+      praesentation:{aabn:"Viser manuskriptet til oplægget — kræver login; hentes frisk fra projektet",hent:"Henter oplægget som PowerPoint-fil du kan åbne og rette",igen:"Skriver oplægget igen ud fra den nyeste kode",lav:"AI skriver et oplæg om POC'en du kan bruge til et møde"},
       resume:"AI læser projektet og skriver et kort resumé — tager under et minut"
     };
     var grid = document.getElementById("grid");
@@ -537,12 +540,14 @@
       return '<button class="cp-btn cp-btn--live" data-hent="'+esc(poc)+'" data-navn="'+esc(navn||poc)+'" '+
         'title="'+esc(HJAELP.praesentation.hent)+'">HENT</button>';
     }
-    // Hvad der står i den faste venstre-kolonne når en række HAR et resultat: de læsbare dokumenter
-    // får ÅBN (login-frit /public/docs), præsentationen får HENT (ingen ÅBN — se HJAELP-noten).
+    // Hvad der står i den faste venstre-kolonne når en række HAR et resultat: ALLE rækker får nu
+    // ÅBN (JAW 2026-07-29 — oplægget skal kunne åbnes her som de andre dokumenter). Forskellen
+    // ligger i HVORDAN der hentes, ikke i knappen: brugerguide/løsningsbeskrivelse/Snyk læses
+    // login-frit via /public/docs, mens præsentationen hentes autentificeret (se `runView`).
     // Bruges BÅDE ved kort-render og af runDoc efter en succesfuld generering, så de to kan ikke
-    // komme ud af sync. Ukendte kinds falder tilbage til ÅBN (uændret adfærd for brugerguide m.fl.).
+    // komme ud af sync. Præsentationens HENT (.pptx) bor i handlings-kolonnen — den 84px brede
+    // ÅBN-kolonne har ikke plads til to knapper (samme opdeling som admin-dashboardets PocCard).
     function openCellHtml(kind,poc,navn){
-      if(kind==="praesentation") return hentBtn(poc,navn);
       return '<button class="cp-btn cp-btn--live" data-view="'+esc(kind)+'" data-poc="'+esc(poc)+'" title="'+esc(HJAELP[kind]?HJAELP[kind].aabn:"")+'">'+ICONS.ext+"ÅBN</button>";
     }
     function card(r){
@@ -603,15 +608,21 @@
       }
       // Præsentation (OPLÆG): KUN egne kort. Tidsstemplet sendes kun for kalderens egne POC'er
       // (serveren sender null for andres, og klienten kan ikke skelne "intet oplæg" fra "ikke dit
-      // kort") → rækken ville være tom og forvirrende for alle andre. HENT er grøn i ÅBN-kolonnen;
-      // der er BEVIDST ingen ÅBN af manuskriptet her (den login-frie doc-vej dækker det ikke).
+      // kort") → rækken ville være tom og forvirrende for alle andre.
+      // Rækken har nu SAMME form som brugerguide/løsningsbeskrivelse (ÅBN + GENGENERÉR) plus HENT,
+      // der leverer .pptx'en (JAW 2026-07-29). HENT stakkes LODRET over GENGENERÉR i handlings-
+      // kolonnen — nøjagtig som admin-dashboardets PocCard — fordi ÅBN-kolonnen er 84px og ikke
+      // rummer to knapper ved siden af hinanden.
       function praesRow2(ts){
         if(!r.is_mine) return "";
         var poc=esc(r.poc);
         if(ts){
           return row2("Oplæg","Præsentation",ts2("senest "+fmtDate(ts)),
             openCellHtml("praesentation",r.poc,title),
-            '<button class="cp-btn cp-btn--ghost" data-praes="'+poc+'" data-navn="'+esc(title)+'" title="'+esc(HJAELP.praesentation.igen)+'">GENGENERÉR</button>');
+            '<div style="display:flex;flex-direction:column;gap:6px">'+
+              hentBtn(r.poc,title)+
+              '<button class="cp-btn cp-btn--ghost" data-praes="'+poc+'" data-navn="'+esc(title)+'" title="'+esc(HJAELP.praesentation.igen)+'">GENGENERÉR</button>'+
+            "</div>");
         }
         return row2("Oplæg","Præsentation",tsMissing2("endnu ikke genereret"),"",
           '<button class="cp-btn cp-btn--live" data-praes="'+poc+'" data-navn="'+esc(title)+'" title="'+esc(HJAELP.praesentation.lav)+'">LAV PRÆSENTATION</button>');
@@ -1038,16 +1049,21 @@
       // efterlader byggeren uden HENT-knap til det oplæg der stadig ligger i repoet. Vores egen
       // vente-pladsholder (Snyks auto-genforsøg) må aldrig gendannes → læs den som tom.
       var prevOpenHtml=(openCell&&!openCell.querySelector(".cp-btn--wait"))?openCell.innerHTML:"";
-      // Præsentationen ALTID: dens kolonne bærer HENT, som leverer en fil ud af browseren. Stod den
-      // klikbar under en gen-generering, ville byggeren tavst få det GAMLE oplæg (serveren bygger
-      // .pptx'en af det manuskript der ligger i repoet lige nu) — og succes-kvitteringen bagefter
-      // læses som bekræftelse på netop den fil. Et forkert deck til mødet er dét featuren skal
-      // forhindre, så knappen erstattes af vente-pladsholderen mens der genereres.
+      // Præsentationen ALTID: under en gen-generering må hverken ÅBN eller HENT stå klikbar, for
+      // begge ville tavst levere det GAMLE oplæg (serveren bygger .pptx'en — og viser manuskriptet
+      // — ud fra det der ligger i repoet lige nu), og succes-kvitteringen bagefter læses som
+      // bekræftelse på netop det. Et forkert deck til mødet er dét featuren skal forhindre.
       var putWait=!!(openCell&&!isResume&&(kind==="praesentation"||openCell.innerHTML.replace(/\s/g,"")===""||openCell.querySelector(".cp-btn--wait")));
       var succeeded=false, retrying=false;
       if(btn){ btn.disabled=true; btn.classList.add("cp-btn--wait");
         btn.innerHTML=ICONS.spin+" "+(kind==="snyk"?"SCANNER …":"GENERERER …"); }
-      if(putWait) openCell.innerHTML='<button class="cp-btn cp-btn--ghost cp-btn--wait" disabled title="Genereres — '+(kind==="praesentation"?"Hent":"Åbn")+'-knappen kommer her">'+ICONS.spin+"</button>";
+      if(putWait) openCell.innerHTML='<button class="cp-btn cp-btn--ghost cp-btn--wait" disabled title="Genereres — Åbn-knappen kommer her">'+ICONS.spin+"</button>";
+      // HENT bor nu i handlings-kolonnen (ikke i den kolonne `putWait` rydder), så den skal låses
+      // eksplicit — ellers ville flytningen af knappen genåbne præcis hullet ovenfor. Gendannes i
+      // `frigivHent()`, som kaldes på BÅDE succes- og fejlvejen.
+      var hentEl=(kind==="praesentation"&&row)?row.querySelector('[data-hent]'):null;
+      if(hentEl){ hentEl.disabled=true; hentEl.classList.add("cp-btn--wait"); }
+      function frigivHent(){ if(hentEl){ hentEl.disabled=false; hentEl.classList.remove("cp-btn--wait"); } }
       function say(cls,html){
         if(isResume){ var el=document.getElementById("docmsg-"+encodeURIComponent(poc)+"-resume");
           if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
@@ -1085,8 +1101,8 @@
             say("ok","✓ "+(LABEL[kind]||"Dokument")+" gemt som <code>"+esc(d.path)+"</code>.");
             if(btn){ btn.textContent=(kind==="snyk"?"KØR IGEN":"GENGENERÉR"); if(HJAELP[kind]) btn.title=HJAELP[kind].igen; }
             toGhost();
-            // Rækken opgraderes til "findes"-tilstand: grøn ÅBN (præsentation: HENT) i den faste
-            // kolonne + frisk tidsstempel.
+            frigivHent();   // det friske manuskript må nu gerne hentes som .pptx
+            // Rækken opgraderes til "findes"-tilstand: grøn ÅBN i den faste kolonne + frisk tidsstempel.
             if(openCell) openCell.innerHTML=openCellHtml(kind,poc,btn?btn.getAttribute("data-navn"):null);
             if(tsCell){ tsCell.textContent="netop genereret"; tsCell.classList.remove("cp-docrow2__ts--missing"); }
           }
@@ -1110,6 +1126,9 @@
             if(!succeeded&&prevBtnHtml!=null) btn.innerHTML=prevBtnHtml;
             delete btn.dataset.origHtml; }
           if(!succeeded&&putWait) openCell.innerHTML=prevOpenHtml;
+          // Også ved FEJL: en fejlet GENGENERÉR må ikke efterlade byggeren uden HENT til det oplæg
+          // der stadig ligger i repoet — samme begrundelse som gendannelsen af ÅBN-kolonnen ovenfor.
+          frigivHent();
         });
     }
 
@@ -1260,20 +1279,44 @@
         .catch(function(e){ promoErr.textContent=(e&&e.message)||"Ukendt fejl"; promoGo.disabled=false; });
     });
 
-    // ── Doc-viewer: vis et genereret dokument — LOGIN-FRIT (sitet er allerede Entra-gated;
-    // kun generering kræver AIAO-login). Hentes frisk fra repoet via /public/docs. ──
+    // ── Doc-viewer: vis et genereret dokument. Brugerguide/løsningsbeskrivelse/Snyk hentes
+    // LOGIN-FRIT via /public/docs (sitet er allerede Entra-gated; kun generering kræver
+    // AIAO-login). Oplæggets manuskript er UNDTAGELSEN og hentes autentificeret — se AUTHED_VIEW.
+    // Alt hentes frisk fra repoet; registret holder kun tidsstemplet. ──
     var docBg=document.getElementById("docBg");
     var docTitle=document.getElementById("doc-title"), docMeta=document.getElementById("doc-meta"), docBody=document.getElementById("doc-body");
-    var DOC_TITLE={brugerguide:"Brugerguide", loesningsbeskrivelse:"Løsningsbeskrivelse", snyk:"Snyk-sikkerhedsrapport"};
+    var DOC_TITLE={brugerguide:"Brugerguide", loesningsbeskrivelse:"Løsningsbeskrivelse", snyk:"Snyk-sikkerhedsrapport",
+                   praesentation:"Oplæg — manuskript"};
 
-    function requestView(poc,kind){ runView(poc,kind); }
+    // ⚠️ Præsentationen er den ENE kind der kræver login (JAW 2026-07-29). Manuskriptet er talepapir
+    // og blev bevidst holdt UDE af den login-frie `/public/docs`-allowliste (`_PUBLIC_KINDS`) —
+    // den grænse er UÆNDRET. ÅBN virker alligevel, fordi den henter gennem det autentificerede
+    // `GET /pocs/{poc}/docs/praesentation` med brugerens egen session, som HENT også gør.
+    // Tilføj derfor ALDRIG "praesentation" til /public/docs for at spare dette login væk.
+    var AUTHED_VIEW={praesentation:true};
+
+    function requestView(poc,kind){
+      // Login-pending-mønsteret som de øvrige ejer-handlinger: uden session åbnes login, og
+      // visningen genoptages bagefter (se dispatcheren efter doLogin).
+      if(AUTHED_VIEW[kind]&&!session){ pending={poc:poc,view:kind}; openLogin(); return; }
+      runView(poc,kind);
+    }
     function runView(poc,kind){
       docTitle.textContent=(DOC_TITLE[kind]||"Dokument")+" · "+poc;
       docMeta.textContent="";
       docBody.textContent="Henter dokumentet fra repoet …";
       docBg.classList.add("show");
-      fetch(API+"/public/docs/"+encodeURIComponent(poc)+"/"+encodeURIComponent(kind))
+      var authed=!!AUTHED_VIEW[kind];
+      var url=authed
+        ? API+"/pocs/"+encodeURIComponent(poc)+"/docs/"+encodeURIComponent(kind)
+        : API+"/public/docs/"+encodeURIComponent(poc)+"/"+encodeURIComponent(kind);
+      fetch(url, authed?{ headers:{ Authorization:"Bearer "+session } }:undefined)
         .then(function(r){
+          if(authed&&r.status===401){
+            session=null; pending={poc:poc,view:kind};
+            docBody.textContent="Session udløbet — log ind igen.";
+            docBg.classList.remove("show"); openLogin(); return null;
+          }
           if(r.status===404){ docBody.textContent="Dokumentet er ikke genereret endnu."; return null; }
           if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
           return r.json();
@@ -1373,6 +1416,7 @@
           else if(p&&p.requestPoc){ openReq(); }
           else if(p&&p.praes){ requestPraes(p.poc, document.querySelector('[data-praes="'+p.poc+'"]')); }
           else if(p&&p.hent){ hentPraes(p.poc, document.querySelector('[data-hent="'+p.poc+'"]')); }
+          else if(p&&p.view){ runView(p.poc,p.view); }   // ÅBN af oplægget kræver login (AUTHED_VIEW)
           // Præsentationens knap bærer data-praes (ikke data-act) → find den som fallback, så et
           // gen-forsøg efter en udløbet session stadig har sin knap at vise arbejdstilstanden på.
           else if(p&&p.kind){ runDoc(p.poc,p.kind, document.querySelector('[data-act="'+p.kind+'"][data-poc="'+p.poc+'"]')||document.querySelector('[data-praes="'+p.poc+'"]'), 0, p.body); }
