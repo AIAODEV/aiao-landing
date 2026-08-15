@@ -479,7 +479,7 @@
       return '<span class="cp-privtoggle"><span class="cp-privlabel">Login</span>'+
         '<button type="button" class="cp-privtrack '+(laast?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
         'data-adg="'+esc(r.poc)+'" data-adgcur="'+(laast?"laast":"aaben")+'" '+
-        'title="Låst = appen kræver AIAO-login (alle adresser: poc/test/drift). Træder i kraft ved næste GENUDGIV/deploy.">'+
+        'title="Låst = appen kræver AIAO-login (alle adresser: poc/test/drift). Udrulles automatisk (genudgivelse, ca. 1 min).">'+
         '<span class="cp-privtext">'+(laast?"Låst":"Åben")+"</span>"+
         '<span class="cp-privknob">'+padlockSvg(laast)+"</span></button></span>";
     }
@@ -498,7 +498,7 @@
         'style="margin-left:0'+(skjul?";display:none":"")+'"><span class="cp-privlabel">API</span>'+
         '<button type="button" class="cp-privtrack '+(laast?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
         'data-apiadg="'+esc(r.poc)+'" data-apiadgcur="'+(laast?"laast":"aaben")+'" '+
-        'title="Låst = også appens API (data + AI) kræver AIAO-login. Kræver at appen bruger skabelonens aiaoFetch (v0.15+). Træder i kraft ved næste GENUDGIV/deploy.">'+
+        'title="Låst = også appens API (data + AI) kræver AIAO-login. Kræver at appen bruger skabelonens aiaoFetch (v0.15+). Udrulles automatisk (genudgivelse, ca. 1 min).">'+
         '<span class="cp-privtext">'+(laast?"Låst":"Åben")+"</span>"+
         '<span class="cp-privknob">'+padlockSvg(laast)+"</span></button></span>";
     }
@@ -847,6 +847,9 @@
       if(adg){ e.stopPropagation(); toggleAdgang(adg, adg.getAttribute("data-adg"), adg.getAttribute("data-adgcur")); return; }
       var apiadg=e.target.closest("[data-apiadg]");
       if(apiadg){ e.stopPropagation(); toggleApiAdgang(apiadg, apiadg.getAttribute("data-apiadg"), apiadg.getAttribute("data-apiadgcur")); return; }
+      // "PRØV IGEN" i lås-noten: udrulningen (genudgivelsen) fejlede, men flaget ER gemt.
+      var udr=e.target.closest("[data-udrul]");
+      if(udr){ e.stopPropagation(); udrulLaas(udr.getAttribute("data-udrul")); return; }
       var rq=e.target.closest("[data-reqdel]");
       if(rq){ e.stopPropagation(); reqDel(rq.getAttribute("data-reqdel")); return; }
       var cd=e.target.closest("[data-canceldel]");
@@ -961,9 +964,42 @@
         .catch(function(){ loadRepos(); });
     }
     // Adgangs-lås (AIAO-login): POST /pocs/{poc}/adgang (samme ejer-token-mønster som synlighed).
-    // Slideren flippes LOKALT (ingen reload) + en efemer note minder om genudgivelsen — låsen
-    // håndhæves i appens middleware og træder først i kraft ved næste udgivelse.
+    // Slideren flippes LOKALT (ingen reload), og kortet UDRULLER selv ændringen bagefter — låsen
+    // håndhæves i appens middleware, og env'et bages ved deploy.
     function adgMsg(poc,cls,html){ var el=document.getElementById("adgmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
+    // Begge sliders står stille mens udrulningen kører — to samtidige genudgivelser af samme POC
+    // ville kappes om det samme Vercel-projekt.
+    function adgBusy(poc,on){
+      var a=document.querySelector('[data-adg="'+poc+'"]'); if(a) a.disabled=on;
+      var b=document.querySelector('[data-apiadg="'+poc+'"]'); if(b) b.disabled=on;
+    }
+    // Genudgiv, så det netop gemte lås-flag bages ind i appens env. Ejeren må gøre det selv
+    // (POST /pocs/{poc}/republish er ejer-på-egne + admin) — ellers kunne han stille sin lås uden
+    // at få den i luften. Kvitteringen huskes pr. POC, så "PRØV IGEN" kan gentage præcis samme skridt.
+    var udrulTekst={};
+    function udrulLaas(poc,kvittering){
+      if(!session) return;
+      if(kvittering) udrulTekst[poc]=kvittering;
+      var tekst=udrulTekst[poc]||"Ændringen er i luften.";
+      adgBusy(poc,true);
+      adgMsg(poc,"","Udruller ændringen … (ca. 1 minut — du kan roligt blive på siden)");
+      function fejl(grund){
+        adgMsg(poc,"err","Ændringen er gemt, men blev IKKE udrullet ("+esc(grund)+"). "+
+          '<button type="button" class="cp-btn cp-btn--ghost" data-udrul="'+esc(poc)+'">PRØV IGEN</button>');
+      }
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/republish",{
+        method:"POST", headers:{ Authorization:"Bearer "+session }
+      }).then(function(r){
+        adgBusy(poc,false);
+        if(r.status===401){ session=null; openLogin(); return; }
+        if(!r.ok){
+          return r.json().catch(function(){ return null; }).then(function(j){
+            fejl(j&&j.detail ? j.detail : "fejl "+r.status);
+          });
+        }
+        adgMsg(poc,"ok",esc(tekst));
+      }).catch(function(){ adgBusy(poc,false); fejl("ingen kontakt til backend"); });
+    }
     function toggleAdgang(btn, poc, cur){
       if(!session) return;
       var next=(cur==="laast")?"aaben":"laast";
@@ -996,7 +1032,9 @@
             }
           }
         }
-        adgMsg(poc,"ok","Husk GENUDGIV — låsen træder først i kraft ved næste udgivelse.");
+        udrulLaas(poc, laast
+          ? "Låst — appen kræver nu AIAO-login. Ændringen er i luften."
+          : "Åben — låsen er fjernet, og ændringen er i luften.");
       }).catch(function(){ btn.disabled=false; adgMsg(poc,"err","Kunne ikke ændre adgangs-låsen."); });
     }
     // API-lås (skive 3): POST /pocs/{poc}/api-adgang. Samme lokale flip + efemer note som side-låsen
@@ -1018,9 +1056,9 @@
         var t=btn.querySelector(".cp-privtext"); if(t) t.textContent=(laast?"Låst":"Åben");
         var k=btn.querySelector(".cp-privknob"); if(k) k.innerHTML=padlockSvg(laast);
         // Ærlig forudsætning i selve kvitteringen: låsen virker kun hvis appen sender tokenet med.
-        adgMsg(poc,"ok",laast
-          ? "Husk GENUDGIV. NB: appen skal bruge skabelonens aiaoFetch (v0.15+), ellers fejler dens egne API-kald."
-          : "Husk GENUDGIV — API-låsen fjernes ved næste udgivelse.");
+        udrulLaas(poc, laast
+          ? "API'et er låst og i luften. NB: appen skal bruge skabelonens aiaoFetch (v0.15+), ellers fejler dens egne API-kald."
+          : "API-låsen er fjernet, og ændringen er i luften.");
       }).catch(function(){ btn.disabled=false; adgMsg(poc,"err","Kunne ikke ændre API-låsen."); });
     }
     function sletMsg(poc,cls,html){ var el=document.getElementById("sletmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
