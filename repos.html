@@ -695,21 +695,23 @@
       var akt=r.aktivitet, aktivPille="";
       if(akt){
         var aCls=akt.niveau==="groen"?"cp-pill--aktiv-groen":akt.niveau==="gul"?"cp-pill--aktiv-gul":"cp-pill--aktiv-roed";
-        var aTxt=akt.niveau!=="groen"?("Inaktiv i "+akt.dage+" dage")
-          :akt.dage<=0?"Aktiv · i dag"
-          :("Aktiv · for "+akt.dage+" "+(akt.dage===1?"dag":"dage")+" siden");
-        var aTt=akt.niveau==="groen"?("Sidste aktivitet for "+akt.dage+" dage siden — POC'en er sund")
-          :akt.niveau==="gul"?("Ingen aktivitet i "+akt.dage+" dage — hold øje, overvej snart at arkivere")
-          :("Ingen aktivitet i "+akt.dage+" dage — bør sandsynligvis arkiveres for at spare drift");
+        // Hed "Aktivitet" indtil 2026-08-18: navnet lovede brug, men feltet maaler kode-push.
+        // SPEJLER admin-PocCard 1:1 (CSS og tekst er KOPIERET, aldrig delt - loeft begge).
+        var aTxt=akt.niveau!=="groen"?("Ikke bygget i "+akt.dage+" dage")
+          :akt.dage<=0?"Bygget i dag"
+          :("Bygget for "+akt.dage+" "+(akt.dage===1?"dag":"dage")+" siden");
+        var aTt=akt.niveau==="groen"?("Sidste bygger-push for "+akt.dage+" dage siden — POC'en er sund. Måler kode, ikke brug.")
+          :akt.niveau==="gul"?("Ingen bygger-push i "+akt.dage+" dage — hold øje, overvej snart at arkivere. (Siger intet om hvor meget appen bruges.)")
+          :("Ingen bygger-push i "+akt.dage+" dage — bør sandsynligvis arkiveres for at spare drift. (Siger intet om hvor meget appen bruges.)");
         aktivPille='<span class="cp-pill '+aCls+'" title="'+aTt+'">'+aTxt+"</span>";
       }
-      // Meta-grid (admin-gridden): Ejer · Stak · Formål (fuld bredde) · Oprettet · Aktivitet · Schema · Resumé.
+      // Meta-grid (admin-gridden): Ejer · Stak · Formål (fuld bredde) · Oprettet · Sidst bygget · Schema · Resumé.
       var metaGrid='<div class="cp-grid">'+
         field("Ejer",'<div style="font-weight:700">'+ejerNavn+'</div><div class="f-sub">'+ejerSub+"</div>")+
         field("Stak",stakPills)+
         field("Formål",esc(r.formaal||"-"),true)+
         field("Oprettet",esc(fmtDate(r.oprettet)))+
-        (akt?field("Aktivitet",aktivPille):"")+
+        (akt?field("Sidst bygget",aktivPille):"")+
         field("Schema",schemaVal)+
         field("Resumé (AI)",resumeVal,true)+
       "</div>";
