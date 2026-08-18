@@ -85,7 +85,11 @@
     .cp-card__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .cp-card__title { flex: 1 1 160px; min-width: 0; }
     .cp-card__name { font-weight: 700; font-size: 14px; }
-    .cp-card__purpose { font-size: 13px; }
+    /* Undertitlen holdes paa EEN linje. Graensen paa 80 tegn gaelder kun ny tekst; POC'er oprettet
+       foer den (poc65 = hele oplaegget) skal stadig kunne vises paent. CSS-clamp frem for en
+       tegn-optaelling: altid praecis, uanset kortets bredde. Hele teksten er i title-attributten.
+       SPEJLER admin-PocCard (CONSTRAINTS: CSS er kopieret, aldrig delt — loeft begge). */
+    .cp-card__purpose { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .cp-card__host { font-size: 11px; }
     .cp-card__details { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--cp-line); }
     .cp-card.open .cp-card__details { display: block; }
@@ -404,8 +408,12 @@
       <p>Beskriv den POC du gerne vil have oprettet. En admin kigger på anmodningen og opretter den.</p>
       <label for="req-navn">Ønsket navn</label>
       <input id="req-navn" type="text" maxlength="120" placeholder="Fx: Fakturaovervågning" />
-      <label for="req-formaal">Formål (valgfrit)</label>
-      <textarea id="req-formaal" rows="3" maxlength="2000" placeholder="Hvad skal POC'en kunne? Hvem er den til?"></textarea>
+      <label for="req-formaal">Formål — én kort sætning <span id="req-formaal-count" class="f-sub" style="display:inline;text-transform:none;letter-spacing:0">0/80</span></label>
+      <input id="req-formaal" type="text" maxlength="80" placeholder="Fx: Overvåger fakturaer og varsler ved afvigelser" />
+      <div class="f-sub" style="margin-top:5px;">Bliver POC'ens undertitel på kortet — derfor kort.</div>
+      <label for="req-baggrund">Baggrund og mål (valgfrit)</label>
+      <textarea id="req-baggrund" rows="5" placeholder="Skriv så meget du vil: baggrund, forretningsmål, hvad leverancen skal kunne."></textarea>
+      <div class="f-sub" style="margin-top:5px;">Følger med ind i POC'ens CONTEXT.md — teksten er ikke spildt, den er dét Claude læser først.</div>
       <label for="req-slug">Ønsket adresse (valgfrit)</label>
       <input id="req-slug" type="text" maxlength="40" placeholder="Fx: faktura" />
       <div class="f-sub" style="margin-top:5px;">Bliver til POC'ens adresse. En admin kan justere den.</div>
@@ -720,7 +728,9 @@
           '<span class="cp-avatar'+(r.is_live?"":" cp-avatar--inactive")+'">'+esc(initialsOf(r))+"</span>"+
           '<div class="cp-card__title">'+
             '<div class="cp-card__name">'+esc(cap(title))+(handle?' <span class="cp-meta">· '+esc(handle)+"</span>":"")+"</div>"+
-            '<div class="cp-card__purpose">'+(r.formaal?esc(r.formaal):'<span class="cp-meta" style="font-style:italic">(intet formål endnu)</span>')+"</div>"+
+            (r.formaal
+              ? '<div class="cp-card__purpose" title="'+esc(r.formaal)+'">'+esc(r.formaal)+"</div>"
+              : '<div class="cp-card__purpose"><span class="cp-meta" style="font-style:italic">(intet formål endnu)</span></div>')+
             '<div class="cp-meta cp-card__host">'+esc(host(r))+"</div>"+
           "</div>"+
           (r.is_live?'<span class="cp-live">LIVE</span>':"")+
@@ -890,21 +900,28 @@
     var reqBtn=document.getElementById("requestBtn");
     var reqBg=document.getElementById("reqBg");
     var reqNavn=document.getElementById("req-navn"), reqFormaal=document.getElementById("req-formaal");
+    var reqBaggrund=document.getElementById("req-baggrund"), reqFCount=document.getElementById("req-formaal-count");
     var reqSlug=document.getElementById("req-slug"), reqErr=document.getElementById("req-err");
     var reqGo=document.getElementById("req-go"), reqCancel=document.getElementById("req-cancel");
     function showRequestBtn(){ if(reqBtn) reqBtn.style.display=session?"":"none"; }
     function openReq(){
       reqErr.textContent=""; reqErr.className="m-err";
-      reqNavn.value=""; reqFormaal.value=""; reqSlug.value="";
+      reqNavn.value=""; reqFormaal.value=""; reqBaggrund.value=""; reqSlug.value=""; updateFCount();
       reqGo.disabled=false; reqGo.textContent="Send anmodning";
       reqBg.classList.add("show"); reqNavn.focus();
     }
     function closeReq(){ reqBg.classList.remove("show"); }
+    // Tælleren gør graensen synlig MENS man skriver — serveren afviser over 80 (422), og en afvisning
+    // efter man har skrevet et helt oplaeg er praecis den oplevelse feltet skal fjerne.
+    function updateFCount(){ if(reqFCount){ var n=reqFormaal.value.length; reqFCount.textContent=n+"/80";
+      reqFCount.style.color = n>=80 ? "var(--ao-red)" : ""; } }
+    if(reqFormaal) reqFormaal.addEventListener("input", updateFCount);
     function submitRequest(){
       var navn=reqNavn.value.trim();
       if(!navn){ reqErr.className="m-err"; reqErr.textContent="Udfyld et ønsket navn."; return; }
       var body={ oensket_navn:navn };
       var formaal=reqFormaal.value.trim(); if(formaal) body.formaal=formaal;
+      var baggrund=reqBaggrund.value.trim(); if(baggrund) body.baggrund=baggrund;
       var slug=reqSlug.value.trim(); if(slug) body.oensket_slug=slug;
       reqErr.className="m-err"; reqErr.textContent="Sender anmodning …";
       reqGo.disabled=true;
