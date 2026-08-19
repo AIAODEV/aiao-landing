@@ -705,6 +705,17 @@
       var promoLogField = field("Forfremmelses-log",
         '<button class="cp-btn cp-btn--ghost" data-promolog="'+esc(r.poc)+'" title="Viser POC\'ens rejse (oprettet, sendt til test, godkendt …)">▸ Forfremmelses-log</button>'+
         '<div class="promolog" id="promolog-'+pe+'" style="display:none"></div>', true);
+      // Feedback (kun EGNE kort): teksten kræver et login, så feltet vises kun for is_mine — og kun
+      // når der faktisk ER noget, ellers ville knappen ikke bære noget signal. Tælleren kommer fra
+      // /public/repos (is_mine-only); indholdet lazy-hentes fra den AUTHEDE GET /pocs/{poc}/feedback,
+      // som er ejer/admin-gated server-side. SPEJLER admin-PocCards FeedbackListe — løft begge.
+      var fb = r.is_mine ? (r.feedback || {i_alt:0, ubehandlet:0}) : null;
+      var feedbackField = (fb && fb.i_alt > 0)
+        ? field("Feedback fra kolleger",
+            '<button class="cp-btn cp-btn--ghost" data-fblog="'+esc(r.poc)+'" title="Det kolleger har skrevet om appen fra dette kort. Kun du og en admin kan læse det.">▸ Feedback ('+fb.ubehandlet+" ubehandlet af "+fb.i_alt+")</button>"+
+            '<div class="promolog" id="fblog-'+pe+'" style="display:none"></div>', true)
+        : (fb ? field("Feedback fra kolleger",
+            '<span class="cp-meta">Ingen feedback endnu. Kolleger kan skrive med knappen "GIV FEEDBACK" øverst på kortet.</span>', true) : "");
       // Schema-navnet (fx "Schema poc50") — POC'ens Supabase-schema i det delte projekt. Vist som
       // mono-chip; == pocN (allerede offentligt), så intet følsomt eksponeres.
       var schemaVal=r.supabase_schema
@@ -743,7 +754,7 @@
             '<button class="cp-btn cp-btn--ghost" data-canceldel="'+esc(r.poc)+'" title="Fortryd sletnings-anmodningen">FORTRYD</button>'
           : '<button class="cp-btn cp-btn--ghost" data-reqdel="'+esc(r.poc)+'" title="Beder en admin slette POC\'en permanent (sletter ikke selv)">ANMOD OM SLETNING</button>')+
         '<div class="docmsg" id="sletmsg-'+pe+'"></div>', true) : "";
-      var details=prov+metaGrid+docsPanel+promoteField+promoLogField+sletField;
+      var details=prov+metaGrid+docsPanel+promoteField+promoLogField+feedbackField+sletField;
       var stageBadge=(r.stage==="test")?'<span class="cp-pill">TEST</span>'
         :(r.stage==="drift")?'<span class="cp-pill">DRIFT</span>':"";
       return '<section class="cp-card'+(r.is_live?"":" cp-card--inactive")+'">'+
@@ -859,6 +870,58 @@
           .catch(function(){ box.innerHTML='<div class="f-sub">Kunne ikke hente loggen.</div>'; delete box.dataset.loaded; });
       }
     }
+    // ── Feedback-loggen (kun egne kort) ────────────────────────────────────────────────────
+    // Indholdet er ejer/admin-gated server-side, saa den authede rute bruges — og uden session er
+    // der ingen knap at trykke paa i foerste omgang.
+    function renderFeedback(poster){
+      if(!poster || !poster.length) return '<div class="f-sub">Ingen feedback endnu.</div>';
+      return poster.map(function(p){
+        // Et login-frit navn er UVERIFICERET, og det skal staa — ellers ser et paahit lige saa
+        // troværdigt ud som en kollegas rigtige navn (samme tekst som admin-kortet).
+        var hvem = p.verificeret ? (p.navn || "en indlogget kollega")
+          : (p.navn ? esc(p.navn)+" (selvskrevet navn)" : "anonym");
+        var naar = p.oprettet ? dtFull(p.oprettet) : "";
+        var status = p.behandlet ? " · ✓ behandlet "+esc(fmtDate(p.behandlet)) : "";
+        return '<div style="margin-top:8px;'+(p.behandlet?"opacity:.6;":"")+'">'+
+          '<div style="white-space:pre-wrap">'+esc(p.tekst||"")+"</div>"+
+          '<div class="cp-meta">'+(p.verificeret?esc(hvem):hvem)+" · "+esc(naar)+status+"</div>"+
+          (p.behandlet?"":'<button class="cp-btn cp-btn--ghost" data-fbdone="'+esc(p.id)+'" title="Skjuler posten fra listen over ubehandlet — teksten bevares">MARKÉR BEHANDLET</button>')+
+        "</div>";
+      }).join("");
+    }
+    function hentFeedback(poc, box){
+      box.innerHTML='<div class="f-sub">Henter …</div>';
+      return fetch(API+"/pocs/"+encodeURIComponent(poc)+"/feedback",{
+        headers:{ Authorization:"Bearer "+session }
+      }).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+        .then(function(d){ box.dataset.poc=poc; box.innerHTML=renderFeedback(d.feedback); })
+        .catch(function(){ box.innerHTML='<div class="f-sub">Kunne ikke hente feedbacken.</div>'; delete box.dataset.loaded; });
+    }
+    function toggleFeedback(btn){
+      var poc=btn.getAttribute("data-fblog");
+      var box=document.getElementById("fblog-"+encodeURIComponent(poc));
+      if(!box) return;
+      var willOpen=box.style.display==="none";
+      box.style.display=willOpen?"block":"none";
+      btn.textContent=(willOpen?"▾":"▸")+btn.textContent.slice(1);
+      if(willOpen && !box.dataset.loaded){ box.dataset.loaded="1"; hentFeedback(poc, box); }
+    }
+    function markerBehandlet(btn){
+      var id=btn.getAttribute("data-fbdone");
+      var box=btn.closest(".promolog"); if(!box) return;
+      var poc=box.dataset.poc; if(!poc) return;
+      btn.disabled=true; btn.textContent="MARKERER …";
+      fetch(API+"/pocs/"+encodeURIComponent(poc)+"/feedback/"+encodeURIComponent(id)+"/behandlet",{
+        method:"POST", headers:{ Authorization:"Bearer "+session }
+      }).then(function(r){
+        // 404 = en anden fane har allerede markeret den. Hent frisk frem for at gaette: serveren
+        // er kilden til hvad der er behandlet.
+        if(!r.ok && r.status!==404) throw new Error("HTTP "+r.status);
+        return hentFeedback(poc, box);
+      }).catch(function(){
+        btn.disabled=false; btn.textContent="MARKÉR BEHANDLET";
+      });
+    }
     grid.addEventListener("click",function(e){
       var view=e.target.closest("[data-view]");
       if(view){ e.stopPropagation(); requestView(view.getAttribute("data-poc"), view.getAttribute("data-view")); return; }
@@ -891,6 +954,10 @@
       if(cd){ e.stopPropagation(); cancelDel(cd.getAttribute("data-canceldel")); return; }
       var prom=e.target.closest("[data-promote]");
       if(prom){ e.stopPropagation(); requestPromote(prom.getAttribute("data-promote"), prom); return; }
+      var fblog=e.target.closest("[data-fblog]");
+      if(fblog){ e.stopPropagation(); toggleFeedback(fblog); return; }
+      var fbdone=e.target.closest("[data-fbdone]");
+      if(fbdone){ e.stopPropagation(); markerBehandlet(fbdone); return; }
       var plog=e.target.closest("[data-promolog]");
       if(plog){ e.stopPropagation(); togglePromoLog(plog); return; }
       if(e.target.closest("a")) return;
