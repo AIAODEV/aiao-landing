@@ -425,6 +425,23 @@
     </div>
   </div>
 
+  <div class="modal-bg" id="fbBg">
+    <div class="modal">
+      <h3>Giv feedback</h3>
+      <p>Skriv hvad du oplevede — det går direkte til den der har bygget appen. Du behøver ikke være logget ind.</p>
+      <label for="fb-tekst">Din feedback <span id="fb-count" class="f-sub" style="display:inline;text-transform:none;letter-spacing:0">0/2000</span></label>
+      <textarea id="fb-tekst" rows="6" maxlength="2000" placeholder="Fx: Listen viser ikke afdeling, og det er det første jeg kigger efter."></textarea>
+      <label for="fb-navn">Dit navn (valgfrit)</label>
+      <input id="fb-navn" type="text" maxlength="80" placeholder="Fx: Ida fra Løn" />
+      <div class="f-sub" style="margin-top:5px;">Skriver du dit navn, kan byggeren spørge dig ind. Uden navn er den anonym.</div>
+      <div class="m-err" id="fb-err"></div>
+      <div class="row">
+        <button class="btn primary" id="fb-go">Send feedback</button>
+        <button class="btn" id="fb-cancel">Annullér</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Længde-valget før et oplæg genereres. Spørgsmålet er bevidst om MØDET, ikke om POC'ens
        størrelse: omfanget følger indholdet af sig selv, men hvor lang tid man har, ved kun byggeren.
        Samme modal-mønster (modal-bg/.modal/.row/.btn) som "Anmod om test" og "Anmod om ny POC". -->
@@ -449,7 +466,8 @@
     var ICONS = {
       ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>',
       code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
-      spin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>'
+      spin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>',
+      msg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
     };
     // Hjælpetekster (title-tooltips) — SAMME tekster som admin-PocCard (sync-regel i control-planens
     // CONSTRAINTS + spec 2026-07-20-knap-hjaelpetekster-design.md). Bruges både ved kort-render og
@@ -584,6 +602,9 @@
       // Knappen fødes altid aktiv (fail-open); kun for indloggede ejeres egne kort tjekker vi bagefter
       // GitHub-invite-status og spærrer den, hvis invitationen endnu ikke er accepteret (se gateVscodeButtons).
       actions+='<a id="vscode-'+esc(r.poc)+'" class="cp-btn cp-btn--ghost" href="'+esc(vscodeUrl)+'" title="Åbner VS Code og henter projektet forbundet — klar til at bygge. Virker først, når du har taget imod GitHub-invitationen (tjek din mail) og er logget ind i GitHub.">'+ICONS.code+"ÅBN I VS CODE</a>";
+      // GIV FEEDBACK: login-frit (POST /public/feedback/{poc}). Knappen bor i den altid-synlige
+      // top, fordi den skal kunne trykkes i samme øjeblik man har set appen — ikke gemt i detaljerne.
+      actions+='<button class="cp-btn cp-btn--ghost" data-feedback="'+esc(r.poc)+'" title="Skriv til den der har bygget appen — du behøver ikke være logget ind">'+ICONS.msg+"GIV FEEDBACK</button>";
       var ejerNavn=r.ejer_navn?esc(r.ejer_navn):"-";
       var ejerSub=[r.ejer_afdeling,handle].filter(Boolean).map(esc).join(" · ")||"-";
       var stakPills=STAK.map(function(s){return '<span class="cp-pill cp-pill--'+s[1]+'">'+esc(s[0])+"</span>";}).join("");
@@ -862,6 +883,8 @@
       // "PRØV IGEN" i lås-noten: udrulningen (genudgivelsen) fejlede, men flaget ER gemt.
       var udr=e.target.closest("[data-udrul]");
       if(udr){ e.stopPropagation(); udrulLaas(udr.getAttribute("data-udrul")); return; }
+      var fbBtn=e.target.closest("[data-feedback]");
+      if(fbBtn){ e.stopPropagation(); openFeedback(fbBtn.getAttribute("data-feedback")); return; }
       var rq=e.target.closest("[data-reqdel]");
       if(rq){ e.stopPropagation(); reqDel(rq.getAttribute("data-reqdel")); return; }
       var cd=e.target.closest("[data-canceldel]");
@@ -953,6 +976,54 @@
     if(reqBtn) reqBtn.addEventListener("click",function(){ if(session){ openReq(); } else { pending={requestPoc:true}; openLogin(); } });
     reqGo.addEventListener("click",submitRequest);
     reqCancel.addEventListener("click",function(){ closeReq(); });
+
+    // ── Giv feedback (login-frit) ──────────────────────────────────────────────────────────
+    // Sender UDEN Authorization når man ikke er logget ind; MED, hvis man er — så stempler serveren
+    // den verificerede afsender og bruger kontoens navn frem for feltet.
+    var fbBg=document.getElementById("fbBg"), fbTekst=document.getElementById("fb-tekst");
+    var fbNavn=document.getElementById("fb-navn"), fbErr=document.getElementById("fb-err");
+    var fbGo=document.getElementById("fb-go"), fbCancel=document.getElementById("fb-cancel");
+    var fbCount=document.getElementById("fb-count"), fbPoc=null;
+    function fbUpdateCount(){ if(fbCount){ var n=fbTekst.value.length; fbCount.textContent=n+"/2000";
+      fbCount.style.color = n>=2000 ? "var(--ao-red)" : ""; } }
+    if(fbTekst) fbTekst.addEventListener("input", fbUpdateCount);
+    function openFeedback(poc){
+      fbPoc=poc; fbErr.textContent=""; fbErr.className="m-err";
+      fbTekst.value=""; fbNavn.value=""; fbUpdateCount();
+      fbGo.disabled=false; fbGo.textContent="Send feedback";
+      fbBg.classList.add("show"); fbTekst.focus();
+    }
+    function closeFeedback(){ fbBg.classList.remove("show"); }
+    function submitFeedback(){
+      var tekst=fbTekst.value.trim();
+      if(!tekst){ fbErr.className="m-err"; fbErr.textContent="Skriv din feedback først."; return; }
+      var body={ tekst:tekst };
+      var navn=fbNavn.value.trim(); if(navn) body.navn=navn;
+      var headers={ "Content-Type":"application/json" };
+      if(session) headers.Authorization="Bearer "+session;
+      fbErr.className="m-err"; fbErr.textContent="Sender …"; fbGo.disabled=true;
+      fetch(API+"/public/feedback/"+encodeURIComponent(fbPoc),{
+        method:"POST", headers:headers, body:JSON.stringify(body)
+      }).then(function(r){
+        if(r.status===201){ closeFeedback(); return "ok"; }
+        // 429 (for mange på kort tid) og 404 (POC'en er ikke offentlig) har begge en dansk detail
+        // serveren selv har skrevet — vis DEN, ikke vores egen gætte-tekst.
+        return r.text().then(function(t){
+          var detail=""; try{ detail=(JSON.parse(t)||{}).detail||""; }catch(_){}
+          var err=new Error(detail||"Kunne ikke sende feedbacken — prøv igen."); err.user=!!detail; throw err;
+        });
+      }).then(function(ok){
+        fbGo.disabled=false;
+        if(ok==="ok"){
+          grid.insertAdjacentHTML("afterbegin",'<div class="state" style="grid-column:1/-1;color:#16A34A;">✓ Tak — byggeren kan se den nu.</div>');
+        }
+      }).catch(function(e){
+        fbGo.disabled=false; fbErr.className="m-err";
+        fbErr.textContent=(e&&e.user&&e.message)?e.message:"Kunne ikke sende feedbacken — prøv igen.";
+      });
+    }
+    fbGo.addEventListener("click",submitFeedback);
+    fbCancel.addEventListener("click",function(){ closeFeedback(); });
     reqBg.addEventListener("click",function(e){ if(e.target===reqBg) closeReq(); });
     reqSlug.addEventListener("keydown",function(e){ if(e.key==="Enter") submitRequest(); });
 
