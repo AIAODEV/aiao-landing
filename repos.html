@@ -75,6 +75,28 @@
     h1 { font-family: var(--font-display); font-size: 34px; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 8px; }
     .lead { color: var(--muted); margin: 0 0 32px; font-size: 17px; max-width: 62ch; }
 
+    /* ── Topbjælken: intro-linjen + knapperne, låst fast når man ruller ──────────────────
+       Hvorfor sticky: listen er lang, og "Logget ind som …" er svaret på et spørgsmål man
+       stiller sig MENS man kigger på kortene — står det kun øverst, er det væk præcis når
+       man har brug for det. Samme grund til at "+ Anmod om ny POC" følger med.
+       `--topbar-top` sættes fra JS til sidehovedets FAKTISKE højde: sidehovedet er selv
+       sticky (top:0), så et gættet tal ville lægge bjælken ind under det den dag nogen
+       ændrer sidehovedets polstring. Fallback'en er kun til før scriptet har kørt. */
+    .topbar { position: sticky; top: var(--topbar-top, 64px); z-index: 40;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: saturate(140%) blur(8px); -webkit-backdrop-filter: saturate(140%) blur(8px);
+      margin-inline: calc(var(--gutter) * -1); padding: 10px var(--gutter) 12px;
+      border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    /* 15px frem for 17px, og uden 62ch-loftet: teksten er 135 tegn, og ved 17px kunne den
+       ikke være på én linje i en 1080px-container. Den wrapper stadig på smalle skærme —
+       en afkortning med "…" ville tabe "Klik et kort for detaljer." i tavshed. */
+    .topbar .lead { margin: 0 0 10px; font-size: 15px; max-width: none; }
+    .topbar-knapper { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    /* På en smal skærm ombrydes intro-linjen til 2-3 linjer (målt: 2 ved 768px, 3 ved 480px).
+       En låst bjælke i den højde ville sammen med sidehovedet æde det meste af skærmen, og så
+       er kuren værre end sygdommen — dér ruller den med som før. */
+    @media (max-width: 760px) { .topbar { position: static; backdrop-filter: none; -webkit-backdrop-filter: none; } }
+
     .grid { display: grid; gap: 10px; }
 
     /* ── POC-kort (admin-PocCard 1:1): hvidt kort, rød venstre-kant på aktive, mono-tekst ── */
@@ -330,9 +352,9 @@
   <main>
     <div class="ao-container">
       <h1>POC-oversigt</h1>
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;">
-        <p class="lead" style="margin:0;flex:1 1 340px;">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
-        <div style="flex:none;display:flex;gap:8px;flex-wrap:wrap;">
+      <div class="topbar">
+        <p class="lead">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
+        <div class="topbar-knapper">
           <button id="revealBtn" class="cp-btn cp-btn--live" style="white-space:nowrap;" title="Log ind med din AIAO-konto (samme som admin.aiao.dev), så du også ser dine egne private POC'er og kan styre synlighed og bede om sletning.">Log ind — se &amp; styr dine POC'er</button>
           <span id="loginStatus" style="display:none;align-items:center;gap:10px;white-space:nowrap;">
             <span style="font-size:13px;color:var(--muted);">Logget ind som <b id="loginWho" style="color:var(--text);font-weight:600;"></b></span>
@@ -991,6 +1013,17 @@
       // hele pointen — ellers ville kortene blive stående som om man stadig var logget ind.
       if(u) u.addEventListener("click",function(){ ryddSession(); pending=null; loadRepos(); });
       opdaterLoginStatus();
+    })();
+
+    // Topbjælkens sticky-afstand = sidehovedets MÅLTE højde (det er selv sticky på top:0).
+    // Måles frem for at gættes, og igen ved resize: højden ændrer sig når nav'en ombrydes.
+    (function(){
+      function saetTopbarTop(){
+        var h=document.querySelector("header");
+        if(h) document.documentElement.style.setProperty("--topbar-top", h.offsetHeight+"px");
+      }
+      saetTopbarTop();
+      window.addEventListener("resize", saetTopbarTop);
     })();
     loadRepos();
 
