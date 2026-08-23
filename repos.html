@@ -334,6 +334,10 @@
         <p class="lead" style="margin:0;flex:1 1 340px;">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
         <div style="flex:none;display:flex;gap:8px;flex-wrap:wrap;">
           <button id="revealBtn" class="cp-btn cp-btn--live" style="white-space:nowrap;" title="Log ind med din AIAO-konto (samme som admin.aiao.dev), så du også ser dine egne private POC'er og kan styre synlighed og bede om sletning.">Log ind — se &amp; styr dine POC'er</button>
+          <span id="loginStatus" style="display:none;align-items:center;gap:10px;white-space:nowrap;">
+            <span style="font-size:13px;color:var(--muted);">Logget ind som <b id="loginWho" style="color:var(--text);font-weight:600;"></b></span>
+            <button id="logoutBtn" class="cp-btn cp-btn--ghost" style="white-space:nowrap;" title="Log ud af din AIAO-konto. Listen viser derefter kun de offentlige POC'er.">Log ud</button>
+          </span>
           <button id="requestBtn" class="cp-btn cp-btn--ghost" style="white-space:nowrap;display:none;" title="Bed om en ny POC — udfyld navn og formål, så kigger en admin på anmodningen.">+ Anmod om ny POC</button>
         </div>
       </div>
@@ -505,7 +509,7 @@
       return '<span class="cp-privtoggle"><span class="cp-privlabel">Login</span>'+
         '<button type="button" class="cp-privtrack '+(laast?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
         'data-adg="'+esc(r.poc)+'" data-adgcur="'+(laast?"laast":"aaben")+'" '+
-        'title="Låst = appen kræver AIAO-login (alle adresser: poc/test/drift). Udrulles automatisk (genudgivelse, ca. 1 min).">'+
+        'title="Låst = man skal logge ind med sin AIAO-konto for at åbne appen. Det gælder alle appens adresser. Ændringen er i luften efter ca. 1 minut — du behøver ikke gøre mere.">'+
         '<span class="cp-privtext">'+(laast?"Låst":"Åben")+"</span>"+
         '<span class="cp-privknob">'+padlockSvg(laast)+"</span></button></span>";
     }
@@ -524,7 +528,7 @@
         'style="margin-left:0'+(skjul?";display:none":"")+'"><span class="cp-privlabel">API</span>'+
         '<button type="button" class="cp-privtrack '+(laast?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
         'data-apiadg="'+esc(r.poc)+'" data-apiadgcur="'+(laast?"laast":"aaben")+'" '+
-        'title="Låst = også appens API (data + AI) kræver AIAO-login. Kræver at appen bruger skabelonens aiaoFetch (v0.15+). Udrulles automatisk (genudgivelse, ca. 1 min).">'+
+        'title="Ud over siderne henter appen selv oplysninger og AI-svar bag kulisserne. Låst = det kræver også AIAO-login, så ingen kan hente det uden om appen. Det virker kun hvis appen er bygget til det: prøv appen bagefter — virker den som før, er alt godt, og ellers slår du bare låsen fra igen her. Ændringen er i luften efter ca. 1 minut.">'+
         '<span class="cp-privtext">'+(laast?"Låst":"Åben")+"</span>"+
         '<span class="cp-privknob">'+padlockSvg(laast)+"</span></button></span>";
     }
@@ -536,7 +540,7 @@
       return '<span class="cp-privtoggle" style="margin-left:0"><span class="cp-privlabel">Privat</span>'+
         '<button type="button" class="cp-privtrack '+(priv?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
         'data-vis="'+esc(r.poc)+'" data-syn="'+(priv?"private":"public")+'" '+
-        'title="Privat = kun du + admins ser POC\'en. Offentlig = synlig for alle på aiao.dev/repos.">'+
+        'title="Privat = kun du og en admin kan se POC\'en på denne side. Offentlig = alle kolleger på aiao.dev/repos kan se den. Det ændrer IKKE om selve appen kræver login — det gør Login-knappen ved siden af.">'+
         '<span class="cp-privtext">'+(priv?"Låst":"Åben")+"</span>"+
         '<span class="cp-privknob">'+padlockSvg(priv)+"</span></button></span>";
     }
@@ -938,7 +942,7 @@
       var praesLogin=e.target.closest("[data-praeslogin]");
       if(praesLogin){ e.stopPropagation(); pending={reveal:true}; openLogin(); return; }
       var vis=e.target.closest("[data-vis]");
-      if(vis){ e.stopPropagation(); toggleVis(vis.getAttribute("data-vis"), vis.getAttribute("data-syn")); return; }
+      if(vis){ e.stopPropagation(); toggleVis(vis, vis.getAttribute("data-vis"), vis.getAttribute("data-syn")); return; }
       var adg=e.target.closest("[data-adg]");
       if(adg){ e.stopPropagation(); toggleAdgang(adg, adg.getAttribute("data-adg"), adg.getAttribute("data-adgcur")); return; }
       var apiadg=e.target.closest("[data-apiadg]");
@@ -982,6 +986,11 @@
     (function(){
       var b=document.getElementById("revealBtn");
       if(b) b.addEventListener("click",function(){ if(session){ loadRepos(); } else { pending={reveal:true}; openLogin(); } });
+      var u=document.getElementById("logoutBtn");
+      // Log ud henter listen igen UDEN token: de private POC'er forsvinder med det samme. Det er
+      // hele pointen — ellers ville kortene blive stående som om man stadig var logget ind.
+      if(u) u.addEventListener("click",function(){ ryddSession(); pending=null; loadRepos(); });
+      opdaterLoginStatus();
     })();
     loadRepos();
 
@@ -1022,7 +1031,7 @@
         headers:{ Authorization:"Bearer "+session, "Content-Type":"application/json" },
         body:JSON.stringify(body)
       }).then(function(r){
-        if(r.status===401){ session=null; pending={requestPoc:true}; showRequestBtn(); closeReq(); openLogin(); return null; }
+        if(r.status===401){ ryddSession(); pending={requestPoc:true}; showRequestBtn(); closeReq(); openLogin(); return null; }
         if(r.status===201){ closeReq(); return "ok"; }
         // 400 (ugyldig slug/tomt navn) / 403 (ingen rolle) / andet: vis backendens detail hvis muligt.
         return r.text().then(function(t){
@@ -1097,7 +1106,23 @@
     // ── Ejer-handlinger: generér docs/brugerguide.md + docs/loesningsbeskrivelse.md ──────────
     // Kræver en control-plane Supabase-session (samme konto som admin.aiao.dev). Token holdes KUN
     // i hukommelsen; serveren håndhæver ejer/admin (ikke-ejere får 403). Nøgler er offentlige (anon).
-    var session=null, authCfg=null, pending=null;
+    var session=null, sessionEmail=null, authCfg=null, pending=null;
+    // Login-tilstanden ét sted. Knappen "Log ind" må ALDRIG stå fremme når man ER logget ind —
+    // den lover en handling der ikke findes, og efterlader tvivl om hvorvidt man er inde.
+    // Emailen vises med vilje: hvilke private POC'er man ser afhænger af HVEM man er logget ind som.
+    function opdaterLoginStatus(){
+      var ind=document.getElementById("revealBtn"), ud=document.getElementById("loginStatus"),
+          hvem=document.getElementById("loginWho");
+      if(!ind||!ud) return;
+      if(session){
+        ind.style.display="none"; ud.style.display="inline-flex";
+        if(hvem) hvem.textContent = sessionEmail || "din AIAO-konto";
+      } else { ind.style.display=""; ud.style.display="none"; }
+      showRequestBtn();
+    }
+    // Sessionen bor KUN i hukommelsen (aldrig i localStorage) — derfor er man logget ud igen efter
+    // en genindlæsning. Hver 401 rydder tilstanden her, så knappen aldrig kommer bagud for virkeligheden.
+    function ryddSession(){ session=null; sessionEmail=null; opdaterLoginStatus(); }
     var loginBg=document.getElementById("loginBg");
     var liEmail=document.getElementById("li-email"), liPw=document.getElementById("li-pw"), liErr=document.getElementById("li-err");
     var LABEL={brugerguide:"brugerguide", loesningsbeskrivelse:"løsningsbeskrivelse", snyk:"Snyk-rapport", praesentation:"oplæg"};
@@ -1111,14 +1136,35 @@
     function closeLogin(){ loginBg.classList.remove("show"); }
 
     // ── Ejer-styring (kun is_mine-kort, dvs. indlogget ejer): synlighed-slider + anmod/fortryd sletning ──
-    function toggleVis(poc, cur){
+    // Slideren flippes LOKALT — præcis som login- og API-sliderne ved siden af. Et `loadRepos()`
+    // gentegner HELE gridet, og så klapper det kort man står i sammen: man skulle finde sin POC og
+    // klikke sig ind igen for at se resultatet af sit eget klik. Synligheden påvirker intet andet på
+    // kortet (ejeren ser sine egne POC'er uanset), så der er intet at genhente.
+    function toggleVis(btn, poc, cur){
       if(!session) return;
       var next=(cur==="private")?"public":"private";
+      if(btn) btn.disabled=true;
       fetch(API+"/pocs/"+encodeURIComponent(poc)+"/visibility",{
         method:"POST", headers:{ Authorization:"Bearer "+session, "Content-Type":"application/json" },
         body:JSON.stringify({ synlighed: next })
-      }).then(function(r){ if(r.status===401){ session=null; openLogin(); return; } loadRepos(); })
-        .catch(function(){ loadRepos(); });
+      }).then(function(r){
+        if(btn) btn.disabled=false;
+        if(r.status===401){ ryddSession(); openLogin(); return; }
+        if(!r.ok){ adgMsg(poc,"err","Kunne ikke ændre synligheden lige nu. Prøv igen om lidt."); return; }
+        var priv=(next==="private");
+        if(btn){
+          btn.setAttribute("data-syn", next);
+          btn.className="cp-privtrack "+(priv?"cp-privtrack--priv":"cp-privtrack--pub");
+          var t=btn.querySelector(".cp-privtext"); if(t) t.textContent=(priv?"Låst":"Åben");
+          var k=btn.querySelector(".cp-privknob"); if(k) k.innerHTML=padlockSvg(priv);
+        }
+        adgMsg(poc,"ok", priv
+          ? "POC'en er nu privat — kun du og en admin kan se den på denne side."
+          : "POC'en er nu offentlig — alle på aiao.dev/repos kan se den.");
+      }).catch(function(){
+        if(btn) btn.disabled=false;
+        adgMsg(poc,"err","Kunne ikke ændre synligheden — ingen kontakt til serveren.");
+      });
     }
     // Adgangs-lås (AIAO-login): POST /pocs/{poc}/adgang (samme ejer-token-mønster som synlighed).
     // Slideren flippes LOKALT (ingen reload), og kortet UDRULLER selv ændringen bagefter — låsen
@@ -1148,7 +1194,7 @@
         method:"POST", headers:{ Authorization:"Bearer "+session }
       }).then(function(r){
         adgBusy(poc,false);
-        if(r.status===401){ session=null; openLogin(); return; }
+        if(r.status===401){ ryddSession(); openLogin(); return; }
         if(!r.ok){
           return r.json().catch(function(){ return null; }).then(function(j){
             fejl(j&&j.detail ? j.detail : "fejl "+r.status);
@@ -1166,7 +1212,7 @@
         body:JSON.stringify({ adgang: next })
       }).then(function(r){
         btn.disabled=false;
-        if(r.status===401){ session=null; openLogin(); return; }
+        if(r.status===401){ ryddSession(); openLogin(); return; }
         if(!r.ok){ adgMsg(poc,"err","Kunne ikke ændre adgangs-låsen."); return; }
         var laast=(next==="laast");
         btn.setAttribute("data-adgcur",next);
@@ -1205,8 +1251,8 @@
         body:JSON.stringify({ api_adgang: next })
       }).then(function(r){
         btn.disabled=false;
-        if(r.status===401){ session=null; openLogin(); return; }
-        if(!r.ok){ adgMsg(poc,"err","Kunne ikke ændre API-låsen (kræver at siderne er låst først)."); return; }
+        if(r.status===401){ ryddSession(); openLogin(); return; }
+        if(!r.ok){ adgMsg(poc,"err","Kunne ikke låse. Siderne skal låses først — slå <b>Login</b> til, og prøv så igen."); return; }
         var laast=(next==="laast");
         btn.setAttribute("data-apiadgcur",next);
         btn.className="cp-privtrack "+(laast?"cp-privtrack--priv":"cp-privtrack--pub");
@@ -1214,9 +1260,9 @@
         var k=btn.querySelector(".cp-privknob"); if(k) k.innerHTML=padlockSvg(laast);
         // Ærlig forudsætning i selve kvitteringen: låsen virker kun hvis appen sender tokenet med.
         udrulLaas(poc, laast
-          ? "API'et er låst og i luften. NB: appen skal bruge skabelonens aiaoFetch (v0.15+), ellers fejler dens egne API-kald."
-          : "API-låsen er fjernet, og ændringen er i luften.");
-      }).catch(function(){ btn.disabled=false; adgMsg(poc,"err","Kunne ikke ændre API-låsen."); });
+          ? "Låsen er i luften. Prøv appen igen nu: virker den som før, er alt godt. Viser den fejl eller tomme sider, er den ikke bygget til denne lås — slå den fra igen her, så er du tilbage hvor du var."
+          : "Låsen er fjernet, og ændringen er i luften.");
+      }).catch(function(){ btn.disabled=false; adgMsg(poc,"err","Kunne ikke ændre låsen — ingen kontakt til serveren. Prøv igen om lidt."); });
     }
     function sletMsg(poc,cls,html){ var el=document.getElementById("sletmsg-"+encodeURIComponent(poc)); if(el){ el.className="docmsg"+(cls?" "+cls:""); el.innerHTML=html; } }
     function reqDel(poc){
@@ -1288,7 +1334,7 @@
         .then(function(r){
           // Bær `body` med i pending: ellers ville et gen-forsøg efter login sende oplægget uden
           // det valgte omfang (serveren defaulter til "fuld") — brugerens valg må ikke forsvinde.
-          if(r.status===401){ session=null; pending={poc:poc,kind:kind,body:body}; say("err","Session udløbet — log ind igen."); openLogin(); return null; }
+          if(r.status===401){ ryddSession(); pending={poc:poc,kind:kind,body:body}; say("err","Session udløbet — log ind igen."); openLogin(); return null; }
           if(r.status===403){ say("err","Kun POC'ens ejer eller en admin kan dette."); return null; }
           if(!r.ok) return r.json().catch(function(){return {};}).then(function(j){
             var err=new Error(j.detail||("Fejl ("+r.status+")"));
@@ -1384,7 +1430,7 @@
       docMsg(poc,"","Bygger PowerPoint-filen …");
       fetch(API+"/pocs/"+encodeURIComponent(poc)+"/praesentation.pptx",{ headers:{ Authorization:"Bearer "+session } })
         .then(function(r){
-          if(r.status===401){ session=null; pending={poc:poc,hent:true}; docMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
+          if(r.status===401){ ryddSession(); pending={poc:poc,hent:true}; docMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
           if(!r.ok) return r.json().catch(function(){ return {}; }).then(function(j){ throw new Error(j.detail||("Fejl ("+r.status+")")); });
           return r.blob();
         })
@@ -1424,7 +1470,7 @@
       promoMsg(poc,"","Henter seneste commit …");
       fetch(API+"/pocs/"+encodeURIComponent(poc)+"/promote-preview",{ headers:{ Authorization:"Bearer "+session } })
         .then(function(r){
-          if(r.status===401){ session=null; pending={poc:poc,promote:true}; promoMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); if(btn) btn.disabled=false; return null; }
+          if(r.status===401){ ryddSession(); pending={poc:poc,promote:true}; promoMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); if(btn) btn.disabled=false; return null; }
           if(r.status===403){ promoMsg(poc,"err","Kun POC'ens ejer eller en admin kan anmode."); if(btn) btn.disabled=false; return null; }
           if(!r.ok) throw new Error("Kunne ikke aflæse seneste commit — prøv igen.");
           return r.json();
@@ -1469,7 +1515,7 @@
         body:JSON.stringify({ expected_sha:expectedSha, kommentar:(promoKommentar.value||"").trim()||null })
       })
         .then(function(r){
-          if(r.status===401){ session=null; pending={poc:poc,promote:true}; closePromo(); promoMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
+          if(r.status===401){ ryddSession(); pending={poc:poc,promote:true}; closePromo(); promoMsg(poc,"err","Session udløbet — log ind igen."); openLogin(); return null; }
           if(r.status===403){ closePromo(); promoMsg(poc,"err","Kun POC'ens ejer eller en admin kan anmode."); return null; }
           return r.json().catch(function(){ return {}; }).then(function(j){ return { status:r.status, ok:r.ok, body:j }; });
         })
@@ -1535,7 +1581,7 @@
       fetch(url, authed?{ headers:{ Authorization:"Bearer "+session } }:undefined)
         .then(function(r){
           if(authed&&r.status===401){
-            session=null; pending={poc:poc,view:kind};
+            ryddSession(); pending={poc:poc,view:kind};
             docBody.textContent="Session udløbet — log ind igen.";
             docBg.classList.remove("show"); openLogin(); return null;
           }
@@ -1636,8 +1682,10 @@
           body:JSON.stringify({ email:email, password:pw })
         });
       }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
-        .then(function(j){ if(!j) return; session=j.access_token; liPw.value=""; closeLogin();
-          showRequestBtn();  // "+ Anmod om ny POC" dukker op i samme øjeblik session er sat
+        .then(function(j){ if(!j) return; session=j.access_token;
+          sessionEmail=(j.user&&j.user.email)||email;
+          liPw.value=""; closeLogin();
+          opdaterLoginStatus();  // "Log ind" ud, "Logget ind som … · Log ud" ind (+ Anmod-knappen)
           var p=pending; pending=null;
           if(p&&p.promote){ startPromoteFlow(p.poc); }
           else if(p&&p.requestPoc){ openReq(); }
