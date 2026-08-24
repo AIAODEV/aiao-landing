@@ -565,7 +565,7 @@
       return '<span class="cp-privtoggle" style="margin-left:0"><span class="cp-privlabel">Privat</span>'+
         '<button type="button" class="cp-privtrack '+(priv?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
         'data-vis="'+esc(r.poc)+'" data-syn="'+(priv?"private":"public")+'" '+
-        'title="Privat = kun du og en admin kan se POC\'en på denne side. Offentlig = alle kolleger på aiao.dev/repos kan se den. Det ændrer IKKE om selve appen kræver login — det gør Login-knappen ved siden af.">'+
+        'title="Privat skjuler KUN kortet på denne side (kun du og en admin ser det). Appen kan stadig åbnes af ALLE med linket, også uden AIAO-konto — slå Login til, hvis den skal kræve login. Offentlig = kortet er synligt for alle på aiao.dev/repos.">'+
         '<span class="cp-privtext">'+(priv?"Låst":"Åben")+"</span>"+
         '<span class="cp-privknob">'+padlockSvg(priv)+"</span></button></span>";
     }
@@ -1259,31 +1259,46 @@
       }).then(function(r){
         btn.disabled=false;
         if(r.status===401){ ryddSession(); openLogin(); return; }
-        if(!r.ok){ adgMsg(poc,"err","Kunne ikke ændre adgangs-låsen."); return; }
+        if(!r.ok){
+          // Fx en fredet app (serveren afviser med en dansk forklaring) — vis DEN, ikke en generisk.
+          return r.json().catch(function(){ return null; }).then(function(j){
+            adgMsg(poc,"err",esc(j&&j.detail?j.detail:"Kunne ikke ændre adgangs-låsen."));
+          });
+        }
+        return r.json().catch(function(){ return null; }).then(function(svar){
         var laast=(next==="laast");
         btn.setAttribute("data-adgcur",next);
         btn.className="cp-privtrack "+(laast?"cp-privtrack--priv":"cp-privtrack--pub");
         var t=btn.querySelector(".cp-privtext"); if(t) t.textContent=(laast?"Låst":"Åben");
         var k=btn.querySelector(".cp-privknob"); if(k) k.innerHTML=padlockSvg(laast);
         // API-slideren hører til side-låsen: vis den når siderne låses, skjul den når de åbnes.
-        // Serveren FRIGIVER samtidig API-låsen når siderne åbnes (ellers kunne ingen få et token
-        // og appens egne kald ville 401'e) → spejl den nulstilling i UI'et, så sliderne ikke lyver.
+        // Serveren kaskaderer BEGGE veje (2026-08-24): åbnes siderne frigives API-låsen; låses de,
+        // følger den automatisk med hvor appen MÅLT kan bære den. Spejl svaret, så sliderne ikke lyver.
+        var apiFulgteMed = laast && svar && svar.api_adgang==="laast";
         var api=document.getElementById("apitog-"+encodeURIComponent(poc));
         if(api){
           api.style.display=laast?"":"none";
-          if(!laast){
-            var ab=api.querySelector("[data-apiadg]");
-            if(ab){
-              ab.setAttribute("data-apiadgcur","aaben");
-              ab.className="cp-privtrack cp-privtrack--pub";
-              var at=ab.querySelector(".cp-privtext"); if(at) at.textContent="Åben";
-              var ak=ab.querySelector(".cp-privknob"); if(ak) ak.innerHTML=padlockSvg(false);
-            }
+          var ab=api.querySelector("[data-apiadg]");
+          if(ab && (!laast || apiFulgteMed)){
+            var apiL = laast && apiFulgteMed;
+            ab.setAttribute("data-apiadgcur", apiL?"laast":"aaben");
+            ab.className="cp-privtrack "+(apiL?"cp-privtrack--priv":"cp-privtrack--pub");
+            var at=ab.querySelector(".cp-privtext"); if(at) at.textContent=(apiL?"Låst":"Åben");
+            var ak=ab.querySelector(".cp-privknob"); if(ak) ak.innerHTML=padlockSvg(apiL);
           }
         }
+        // Fulgte API-låsen ikke med, bærer serverens note årsagen (fredet/uparat) — vis den del,
+        // uden "Træder i kraft…"-halen som udrulningen nedenfor overhaler.
+        var apiInfo = "";
+        if(laast && !apiFulgteMed && svar && svar.note && svar.note.indexOf("fulgte IKKE med")>=0){
+          apiInfo = " " + svar.note.replace(/Træder i kraft[\s\S]*$/,"").trim();
+        }
         udrulLaas(poc, laast
-          ? "Låst — appen kræver nu AIAO-login. Ændringen er i luften."
+          ? (apiFulgteMed
+              ? "Låst — appen kræver nu AIAO-login, og API-låsen fulgte automatisk med. Ændringen er i luften."
+              : "Låst — appen kræver nu AIAO-login. Ændringen er i luften." + apiInfo)
           : "Åben — låsen er fjernet, og ændringen er i luften.");
+        });
       }).catch(function(){ btn.disabled=false; adgMsg(poc,"err","Kunne ikke ændre adgangs-låsen."); });
     }
     // API-lås (skive 3): POST /pocs/{poc}/api-adgang. Samme lokale flip + efemer note som side-låsen
