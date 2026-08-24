@@ -353,7 +353,7 @@
     <div class="ao-container">
       <h1>POC-oversigt</h1>
       <div class="topbar">
-        <p class="lead">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren, eller hent den ned i VS Code og byg videre. Klik et kort for detaljer.</p>
+        <p class="lead">Live proof-of-concepts på AO's interne platform. Åbn en POC i browseren — og er du bygger, hent din egen ned i VS Code og byg videre. Klik et kort for detaljer.</p>
         <div class="topbar-knapper">
           <button id="revealBtn" class="cp-btn cp-btn--live" style="white-space:nowrap;" title="Log ind med din AIAO-konto (samme som admin.aiao.dev), så du også ser dine egne private POC'er og kan styre synlighed og bede om sletning.">Log ind — se &amp; styr dine POC'er</button>
           <span id="loginStatus" style="display:none;align-items:center;gap:10px;white-space:nowrap;">
@@ -365,6 +365,9 @@
       </div>
       <div id="grid" class="grid"><div class="state">Henter POC'er ...</div></div>
       <p class="hint"><strong>Åbn i VS Code</strong> henter projektet <em>forbundet</em> til GitHub (klar til at udgive). Det kræver, at du har VS Code installeret og er logget ind i GitHub - så ved vi også, at det er dig, der henter dit repo.</p>
+      <!-- Rollereglerne sagt højt (ejer-beslutning JAW 2026-08-24) — knapperne følger dem, og en
+           regel man ikke kan læse nogen steder, opleves som en fejl når en knap "mangler". -->
+      <p class="hint"><strong>Hvem kan hvad?</strong> En <strong>viewer</strong> ser og åbner apps og læser dokumenter — men bestiller ikke POC'er og henter ikke kode. En <strong>bygger</strong> kan desuden anmode om en ny POC og åbne sine <em>egne</em> POC'er i VS Code. En <strong>godkender</strong> kan alt en bygger kan, kan godkende forfremmelser — og kan åbne <em>alle</em> POC'er i VS Code (læse, ikke ændre). En <strong>admin</strong> kan alt.</p>
     </div>
   </main>
 
@@ -624,10 +627,14 @@
       // udstedt, så et klik ikke rammer ERR_CERT_DATE_INVALID uden forklaring.
       else if(r.stage==="drift" && r.drift_url)
         actions+='<a class="cp-btn cp-btn--live" href="https://'+esc(r.drift_url)+'" target="_blank" rel="noopener noreferrer" title="Åbner produktions-udgaven i en ny fane">'+ICONS.ext+"ÅBN DRIFT"+(r.drift_dns_verified?"":" (afventer DNS)")+"</a>";
+      // Repo-knappen vises kun hvor den VIRKER (ejer-beslutning JAW 2026-08-24): egne kort (ejeren
+      // er collaborator) eller godkender/admin (læse-adgang til alle). Viewer og anonyme har INGEN
+      // GitHub-adgang — en knap ville love noget den ikke kan levere. Synlighed her; GitHub håndhæver.
       // Stabilt pr.-kort-hook (id="vscode-<poc>") så gaten kan opgradere netop denne knap efter render.
-      // Knappen fødes altid aktiv (fail-open); kun for indloggede ejeres egne kort tjekker vi bagefter
-      // GitHub-invite-status og spærrer den, hvis invitationen endnu ikke er accepteret (se gateVscodeButtons).
-      actions+='<a id="vscode-'+esc(r.poc)+'" class="cp-btn cp-btn--ghost" href="'+esc(vscodeUrl)+'" title="Åbner VS Code og henter projektet forbundet — klar til at bygge. Virker først, når du har taget imod GitHub-invitationen (tjek din mail) og er logget ind i GitHub.">'+ICONS.code+"ÅBN I VS CODE</a>";
+      // Knappen fødes aktiv (fail-open); gateVscodeButtons spærrer den bagefter hvis GitHub-
+      // invitationen endnu ikke er accepteret.
+      if(r.is_mine || sessionRolle==="godkender" || sessionRolle==="admin")
+        actions+='<a id="vscode-'+esc(r.poc)+'" class="cp-btn cp-btn--ghost" href="'+esc(vscodeUrl)+'" title="Åbner VS Code og henter projektet forbundet — klar til at bygge. Virker først, når du har taget imod GitHub-invitationen (tjek din mail) og er logget ind i GitHub.">'+ICONS.code+"ÅBN I VS CODE</a>";
       // GIV FEEDBACK: login-frit (POST /public/feedback/{poc}). Knappen bor i den altid-synlige
       // top, fordi den skal kunne trykkes i samme øjeblik man har set appen — ikke gemt i detaljerne.
       actions+='<button class="cp-btn cp-btn--ghost" data-feedback="'+esc(r.poc)+'" title="Skriv til den der har bygget appen — du behøver ikke være logget ind">'+ICONS.msg+"GIV FEEDBACK</button>";
@@ -806,15 +813,17 @@
       grid.innerHTML=list.map(card).join("");
       gateVscodeButtons(list);
     }
-    // VS Code-invite-gate (spejler admin-PocCard 1:1): kun for den indloggede ejers EGNE kort tjekker vi,
-    // om GitHub-invitationen er accepteret. GET /pocs/{poc}/vscode-access → {status:"ok"|"afventer"|"ukendt"}.
-    // FAIL-OPEN overalt: anonym, andres kort, netværks-/HTTP-fejl eller status ok/ukendt → den aktive knap
-    // bliver stående (født aktiv i card()). KUN "afventer" nedgraderer knappen til en grå, ikke-klikbar
+    // VS Code-invite-gate (spejler admin-PocCard 1:1): for hvert kort DER HAR knappen (egne, samt
+    // alle for godkender/admin) tjekker vi om GitHub-invitationen er accepteret.
+    // GET /pocs/{poc}/vscode-access → {status:"ok"|"afventer"|"ukendt"}.
+    // FAIL-OPEN overalt: netværks-/HTTP-fejl eller status ok/ukendt → den aktive knap bliver
+    // stående (født aktiv i card()). KUN "afventer" nedgraderer knappen til en grå, ikke-klikbar
     // udgave med samme danske forklaring som admin. En hikke må aldrig vise en låst knap.
     function gateVscodeButtons(list){
       if(!session||!Array.isArray(list)) return;
       list.forEach(function(r){
-        if(!r||!r.is_mine||!r.poc) return;
+        if(!r||!r.poc) return;
+        if(!(r.is_mine || sessionRolle==="godkender" || sessionRolle==="admin")) return;
         if(!document.getElementById("vscode-"+r.poc)) return;
         fetch(API+"/pocs/"+encodeURIComponent(r.poc)+"/vscode-access",{ headers:{ Authorization:"Bearer "+session } })
           .then(function(res){ if(!res.ok) return null; return res.json().catch(function(){return null;}); })
@@ -1027,17 +1036,19 @@
     })();
     loadRepos();
 
-    // ── Anmod om ny POC (indloggede byggere) ────────────────────────────────────────────────
-    // Knappen er skjult til man er logget ind (ejer-beslutning JAW): anonyme logger ind via
-    // "Log ind — se & styr"-knappen først; "+ Anmod om ny POC" dukker op i samme øjeblik session
-    // er sat. Serveren håndhæver rolle-kravet (POST /poc-requests kræver en tildelt rolle).
+    // ── Anmod om ny POC (bygger/godkender/admin — IKKE viewer, ejer-beslutning 2026-08-24) ──
+    // Knappen er skjult til man er logget ind OG har en rolle der må anmode. Serveren håndhæver
+    // det samme (POST /poc-requests kræver require_bygger) — synligheden matcher blot gaten.
     var reqBtn=document.getElementById("requestBtn");
     var reqBg=document.getElementById("reqBg");
     var reqNavn=document.getElementById("req-navn"), reqFormaal=document.getElementById("req-formaal");
     var reqBaggrund=document.getElementById("req-baggrund"), reqFCount=document.getElementById("req-formaal-count");
     var reqSlug=document.getElementById("req-slug"), reqErr=document.getElementById("req-err");
     var reqGo=document.getElementById("req-go"), reqCancel=document.getElementById("req-cancel");
-    function showRequestBtn(){ if(reqBtn) reqBtn.style.display=session?"":"none"; }
+    function showRequestBtn(){
+      var maaAnmode = sessionRolle==="poc-bygger" || sessionRolle==="godkender" || sessionRolle==="admin";
+      if(reqBtn) reqBtn.style.display=(session && maaAnmode)?"":"none";
+    }
     function openReq(){
       reqErr.textContent=""; reqErr.className="m-err";
       reqNavn.value=""; reqFormaal.value=""; reqBaggrund.value=""; reqSlug.value=""; updateFCount();
@@ -1139,7 +1150,9 @@
     // ── Ejer-handlinger: generér docs/brugerguide.md + docs/loesningsbeskrivelse.md ──────────
     // Kræver en control-plane Supabase-session (samme konto som admin.aiao.dev). Token holdes KUN
     // i hukommelsen; serveren håndhæver ejer/admin (ikke-ejere får 403). Nøgler er offentlige (anon).
-    var session=null, sessionEmail=null, authCfg=null, pending=null;
+    // sessionRolle: kalderens platform-rolle (fra GET /me efter login). Bruges KUN til synlighed —
+    // serveren og GitHub håndhæver de reelle grænser. null = anonym eller kunne ikke slås op.
+    var session=null, sessionEmail=null, sessionRolle=null, authCfg=null, pending=null;
     // Login-tilstanden ét sted. Knappen "Log ind" må ALDRIG stå fremme når man ER logget ind —
     // den lover en handling der ikke findes, og efterlader tvivl om hvorvidt man er inde.
     // Emailen vises med vilje: hvilke private POC'er man ser afhænger af HVEM man er logget ind som.
@@ -1155,7 +1168,7 @@
     }
     // Sessionen bor KUN i hukommelsen (aldrig i localStorage) — derfor er man logget ud igen efter
     // en genindlæsning. Hver 401 rydder tilstanden her, så knappen aldrig kommer bagud for virkeligheden.
-    function ryddSession(){ session=null; sessionEmail=null; opdaterLoginStatus(); }
+    function ryddSession(){ session=null; sessionEmail=null; sessionRolle=null; opdaterLoginStatus(); }
     var loginBg=document.getElementById("loginBg");
     var liEmail=document.getElementById("li-email"), liPw=document.getElementById("li-pw"), liErr=document.getElementById("li-err");
     var LABEL={brugerguide:"brugerguide", loesningsbeskrivelse:"løsningsbeskrivelse", snyk:"Snyk-rapport", praesentation:"oplæg"};
@@ -1718,6 +1731,14 @@
         .then(function(j){ if(!j) return; session=j.access_token;
           sessionEmail=(j.user&&j.user.email)||email;
           liPw.value=""; closeLogin();
+          // Rollen hentes FØR videre render: VS Code- og Anmod-knappernes synlighed afgøres af den
+          // (ejer-beslutning 2026-08-24). Fejl → null = mindst synlighed; serveren håndhæver uanset.
+          return fetch(API+"/me",{ headers:{ Authorization:"Bearer "+session } })
+            .then(function(r){ return r.ok ? r.json().catch(function(){return null;}) : null; })
+            .catch(function(){ return null; })
+            .then(function(me){ sessionRolle=(me&&me.rolle)||null; return j; });
+        })
+        .then(function(j){ if(!j) return;
           opdaterLoginStatus();  // "Log ind" ud, "Logget ind som … · Log ud" ind (+ Anmod-knappen)
           var p=pending; pending=null;
           if(p&&p.promote){ startPromoteFlow(p.poc); }
