@@ -170,3 +170,79 @@ der står i topbar-markup'en (256×256, pakket i en ægte ICO-container med PNG-
 skiftes, så skift logoet og gen-generér ikonet ud fra det — så kan de to ikke komme ud af sync.
 `favicon.ico` er bevidst undtaget fra Entra-gaten i `middleware.ts` (matcheren), så ikonet også
 kan hentes uden session.
+
+## Session-cookien gælder HELE `.aiao.dev` (2026-08-25)
+
+`aiao_session` sættes med `Domain=.aiao.dev`, ikke vært-bundet til `www`. Grunden ligger uden for
+dette repo: platformens POC'er lever på `<slug>-poc.aiao.dev` — **andre værter i andre
+Vercel-projekter** — så en vært-bundet cookie følger ikke med derhen. Med domænet rækker ét
+AO-login på tværs, og control-planen kan veksle det til et platform-token.
+Fuld spec: `aiao-control-plane/docs/spec-ao-sso-foran-alle-poc.md`.
+
+**Følgen, sagt højt:** cookien sendes nu med hvert kald til enhver `*.aiao.dev`-vært, altså også til
+apps byggerne selv skriver. Den er `HttpOnly`, så deres JavaScript ikke kan læse den — men den er
+inden for serverens rækkevidde i hver POC. Bevidst udvidelse (ejer-beslutning JAW), ikke en
+bivirkning.
+
+**To ting der er nemme at brække, og som er test-låst:**
+
+1. **Rydning skal bruge SAMME form som sætningen.** En cookie med `Domain=.aiao.dev` og en
+   vært-bundet cookie med samme navn er **to forskellige cookies** for browseren. Rydder `logout`
+   kun den ene, overlever sessionen — tavst. Derfor rydder både `logout` og `callback` **begge**
+   former.
+2. **`aiao_oauth_tx` bliver vært-bundet.** Den lever ti minutter og bruges kun på www under selve
+   login-hoppet; det snævreste der virker, er det rigtige.
+
+Ved en ændring: `tests/cookie-domaene.test.ts` dækker begge, inkl. callbackens **succes-sti** —
+som var utestet indtil da (de gamle callback-tests rammer kun de tidlige afvisninger).
+
+## `/api/poc-login` — vejen der sætter POC'erne bag AO SSO (2026-08-25)
+
+POC'ernes middleware sender en ikke-indlogget bruger til `PLATFORM_LOGIN_URL`. Peger den på
+`https://www.aiao.dev/api/poc-login?returnTo=<poc>/auth/aiao`, sker resten her:
+
+1. Ingen `aiao_session`? → gennem www's eget Entra-flow og tilbage hertil.
+2. Veksl sessionen til et platform-token hos control-planen
+   (`POST /platform/session-from-sso`).
+3. Redirect til POC'ens `/auth/aiao?pt=<token>`.
+
+**Hvorfor på www og ikke på admin.aiao.dev:** www's login accepterer kun **lokale** stier som
+`next` (`safeNextPath`), og det værn er hærdet tre gange mod open redirects (`//`, `/\`, `%09`).
+Ligger endpointet her, er `next` en almindelig lokal sti, og vi behøver ikke røre det.
+
+**To nye env-variabler** (Vercel, Production + Preview). Mangler én af dem, svarer endpointet 503
+**og kalder ikke ud**:
+
+| | |
+|---|---|
+| `CONTROL_PLANE_API_URL` | Control-plane-backendens URL på Railway |
+| `POC_LOGIN_KEY` | Nøglen påstanden til control-planen signeres med. Samme værdi som `SSO_BRO_KEY` dér |
+
+**`POC_LOGIN_KEY` er en ANDEN nøgle end `SESSION_SECRET`, og det er ikke en detalje.** Endpointet
+verificerer www's session-cookie **selv** og sender kun `{sub, email}` videre, signeret med
+`POC_LOGIN_KEY` og med 60 sekunders levetid. Så:
+
+- `SESSION_SECRET` forlader aldrig www — en kompromitteret control-plane kan ikke forfalske et
+  www-login;
+- en rotation af `POC_LOGIN_KEY` logger **ingen** ud af `www.aiao.dev`;
+- og nøglen kan sættes uden at nogen skal kunne **læse** en eksisterende hemmelighed, hvilket man i
+  praksis ikke kan når Vercel-variablen er markeret `Sensitive`.
+
+Test-låst: kaldet til control-planen må ikke indeholde session-cookien, og www's egen nøgle må ikke
+kunne verificere påstanden.
+
+### To ting man ikke må løsne
+
+**`returnTo`-allowlisten ER sikkerhedsgrænsen.** Platform-tokenet rejser i URL'en til den adresse
+`returnTo` peger på, og tokenets audience er i dag den brede `aiao-poc` — et lækket token virker
+derfor på **hver** POC. Reglen er identisk med control-plane-frontendens `validReturnTo`: `https`,
+**ét** label under `aiao.dev`/`aiao.work`, og præcis stien `/auth/aiao`. Et ugyldigt mål giver 400
+og **redirecter ingen steder**.
+
+**Løkke-værnet.** En bruger uden platform-konto på en **låst** POC får `kraever_konto: true` fra
+broen. Sendte vi hende videre med tokenet, ville POC'ens gate afvise det (andet nøglesæt) og sende
+hende hertil igen — i ring, uden en eneste besked. Derfor svarer endpointet 403 med en forklaring.
+Samme grund til `f=1`-markøren: vi hopper gennem Entra **højst én gang** før vi giver op med tekst.
+
+Alt ovenstående er test-låst i `tests/poc-login.test.ts` (25 tests), og hvert værn er efterprøvet
+ved at fjerne det og se testene blive røde.
