@@ -287,3 +287,27 @@ describe("fingeraftryk", () => {
     expect(r.fingeraftryk).toBeNull();
   });
 });
+
+describe("de tre 503-aarsager kan ogsaa kendes fra hinanden", () => {
+  it("net-fejl, bro-fejl og tomt svar giver hver sin kode", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("ECONNREFUSED"); }));
+    const net = await (await kald(
+      `https://www.aiao.dev/api/poc-login?returnTo=${encodeURIComponent(POC)}`,
+      `aiao_session=${await session()}`)).text();
+
+    broSvarer({}, 500);
+    const bro = await (await kald(
+      `https://www.aiao.dev/api/poc-login?returnTo=${encodeURIComponent(POC)}`,
+      `aiao_session=${await session()}`)).text();
+
+    broSvarer({ tier: "basis" });
+    const tomt = await (await kald(
+      `https://www.aiao.dev/api/poc-login?returnTo=${encodeURIComponent(POC)}`,
+      `aiao_session=${await session()}`)).text();
+
+    expect(net).toContain("[kode: NET]");
+    expect(bro).toContain("[kode: BRO500]");    // statuskoden med — 500 og 404 rettes forskelligt
+    expect(tomt).toContain("[kode: TOMT]");
+    expect(new Set([net, bro, tomt]).size).toBe(3);
+  });
+});

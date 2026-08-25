@@ -153,9 +153,10 @@ export default async function handler(req: Request): Promise<Response> {
       body: JSON.stringify({ session: paastand, app: maal.hostname }),
     });
   } catch (err) {
-    console.error("poc-login: kunne ikke naa control-planen:", err instanceof Error ? err.message : String(err));
-    return side("Login-tjenesten svarer ikke",
-      "Prøv igen om lidt. Varer det ved, så kontakt en administrator.", 503);
+    console.error("poc-login: kunne ikke NAA control-planen:", err instanceof Error ? err.message : String(err));
+    return side("Kunne ikke få fat i platformen",
+      "Login-tjenesten svarede slet ikke. Prøv igen om lidt; varer det ved, så kontakt en "
+      + "administrator. [kode: NET]", 503);
   }
 
   if (svar.status === 401) {
@@ -175,9 +176,12 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (!svar.ok) {
+    // Statuskoden MED i beskeden: en 500 fra broen og en 404 på en forkert URL har vidt
+    // forskellige rettelser, og uden tallet er de umulige at skelne udefra.
     console.error("poc-login: broen svarede", svar.status);
-    return side("Login-tjenesten svarer ikke",
-      "Prøv igen om lidt. Varer det ved, så kontakt en administrator.", 503);
+    return side("Platformen svarede med en fejl",
+      `Login-tjenesten svarede ${svar.status}. Prøv igen om lidt; varer det ved, så kontakt en `
+      + `administrator. [kode: BRO${svar.status}]`, 503);
   }
 
   const krop = await svar.json() as { token?: string; kraever_konto?: boolean };
@@ -192,9 +196,10 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (!krop.token) {
-    console.error("poc-login: intet token i svaret");
-    return side("Login-tjenesten svarer ikke",
-      "Prøv igen om lidt. Varer det ved, så kontakt en administrator.", 503);
+    console.error("poc-login: broen svarede OK, men uden token");
+    return side("Platformen svarede uden et login",
+      "Login-tjenesten godtog dig, men sendte ingen adgang tilbage. Kontakt en administrator. "
+      + "[kode: TOMT]", 503);
   }
 
   const dest = new URL(maal.toString());
