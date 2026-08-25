@@ -10,14 +10,19 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import handler, { gyldigReturnTo } from "../api/poc-login";
-import { signJwt } from "../lib/jwt";
+import { signJwt, verifyJwt } from "../lib/jwt";
 import { SESSION_AUD } from "../lib/config";
 
 const HEMMELIGHED = "kkkkkkkkkkkkkkkk";
+const BRO_NOEGLE = "bro-noeglen-er-en-ANDEN-end-session";
 const POC = "https://jawtest-poc.aiao.dev/auth/aiao";
 
 beforeEach(() => {
   process.env.SESSION_SECRET = HEMMELIGHED;
+  process.env.POC_LOGIN_KEY = BRO_NOEGLE;
+  process.env.ENTRA_TENANT_ID = "TEN";
+  process.env.ENTRA_CLIENT_ID = "CID";
+  process.env.ENTRA_CLIENT_SECRET = "SEC";
   process.env.CONTROL_PLANE_API_URL = "https://cp.example";
 });
 
@@ -121,7 +126,40 @@ describe("med AO-session", () => {
     const kaldt = spy.mock.calls[0] as unknown as [string, RequestInit];
     const krop = JSON.parse(kaldt[1].body as string);
     expect(krop.app).toBe("jawtest-poc.aiao.dev");
-    expect(typeof krop.session).toBe("string");
+
+    // Det AFGØRENDE: www's session-cookie sendes IKKE videre. Det der krydser ledningen er en
+    // kortlivet påstand signeret med en ANDEN nøgle, så SESSION_SECRET aldrig forlader www.
+    const sendtSession = await session();
+    expect(krop.session).not.toBe(sendtSession);
+    const paastand = await verifyJwt<{ sub: string; email: string }>(
+      BRO_NOEGLE, krop.session, { audience: "aiao-bro" });
+    expect(paastand?.email).toBe("a@ao.dk");
+    expect(paastand?.sub).toBe("oid-1");
+
+    // Og www's egen session-nøgle kan IKKE verificere påstanden — de to er adskilt.
+    expect(await verifyJwt(HEMMELIGHED, krop.session, { audience: "aiao-bro" })).toBeNull();
+  });
+
+  it("sender IKKE noget videre paa en forfalsket session — vi verificerer selv", async () => {
+    const spy = broSvarer({ token: "PT123" });
+    const falsk = await signJwt("en-helt-anden-noegle-xxxx",
+      { sub: "oid-9", email: "angriber@example.com" }, 3600, SESSION_AUD);
+    const res = await kald(
+      `https://www.aiao.dev/api/poc-login?returnTo=${encodeURIComponent(POC)}`,
+      `aiao_session=${falsk}`);
+    expect(spy).not.toHaveBeenCalled();
+    expect(res.status).toBe(302);            // ét nyt Entra-hop
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/api/auth/login");
+  });
+
+  it("uden POC_LOGIN_KEY kaldes der slet ikke ud", async () => {
+    delete process.env.POC_LOGIN_KEY;
+    const spy = broSvarer({ token: "x" });
+    const res = await kald(
+      `https://www.aiao.dev/api/poc-login?returnTo=${encodeURIComponent(POC)}`,
+      `aiao_session=${await session()}`);
+    expect(res.status).toBe(503);
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it("LÅST POC uden konto: en forklaring, ALDRIG et redirect", async () => {

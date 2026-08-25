@@ -5,8 +5,14 @@
  * (`PLATFORM_LOGIN_URL`), og herfra:
  *
  *   1. mangler der en `aiao_session`? → send gennem www's Entra-flow og kom tilbage hertil,
- *   2. veksl sessionen til et platform-token hos control-planen,
+ *   2. verificér sessionen HER, og send kun en kortlivet påstand `{sub, email}` til control-planen,
  *   3. redirect til POC'ens `/auth/aiao?pt=<token>`.
+ *
+ * **HVORFOR VI VERIFICERER SELV.** `SESSION_SECRET` forlader aldrig www. Delte vi den med
+ * control-planen, kunne en kompromitteret control-plane forfalske et www-login — og en rotation
+ * ville logge ALLE ud af www.aiao.dev, fordi de 8-timers sessioner er signeret med den. I stedet
+ * underskrives en påstand med en SEPARAT nøgle (`POC_LOGIN_KEY`), 60 sekunders levetid, egen
+ * audience. Det der krydser ledningen har dermed ét formål og er værdiløst i morgen.
  *
  * **HVORFOR HER OG IKKE PÅ admin.aiao.dev.** www's login-flow accepterer kun LOKALE stier som
  * `next` (`safeNextPath`), og det værn er hærdet tre gange mod open redirects (`//`, `/\`, `%09`).
@@ -20,8 +26,14 @@
  * label under `aiao.dev`/`aiao.work`, og præcis stien `/auth/aiao`. **Løsn den aldrig uden at
  * spørge hvad et lækket token kan nå.**
  */
-import { SESSION_COOKIE } from "../lib/config";
+import { getConfig, SESSION_AUD, SESSION_COOKIE } from "../lib/config";
 import { parseCookies } from "../lib/http";
+import { signJwt, verifyJwt } from "../lib/jwt";
+
+/** Audience på påstanden til control-planen. Skal matche `sso_bro.BRO_AUD` dér. */
+const BRO_AUD = "aiao-bro";
+/** Levetid på påstanden. Den bruges i samme kald den laves — sekunder er rigeligt. */
+const BRO_TTL_SECONDS = 60;
 
 export const config = { runtime: "edge" };
 
@@ -78,17 +90,40 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   const api = process.env.CONTROL_PLANE_API_URL;
-  if (!api) {
+  const broNoegle = process.env.POC_LOGIN_KEY;
+  if (!api || !broNoegle) {
+    console.error("poc-login: mangler", !api ? "CONTROL_PLANE_API_URL" : "POC_LOGIN_KEY");
     return side("Login er ikke sat op endnu",
       "Appen kan ikke nå platformens login-tjeneste. Kontakt en administrator.", 503);
   }
+
+  // VI verificerer sessionen — control-planen ser den aldrig. `SESSION_SECRET` forlader dermed
+  // ikke www: en kompromitteret control-plane kan ikke forfalske et www-login, og en rotation af
+  // bro-nøglen logger ingen ud herfra. Det der krydser ledningen er en 60-sekunders påstand med
+  // ét formål, ikke en 8-timers session der åbner hele www.
+  const { sessionSecret } = getConfig();
+  const bruger = await verifyJwt<{ sub: string; email: string }>(sessionSecret, session,
+    { audience: SESSION_AUD });
+  if (!bruger?.email || !bruger?.sub) {
+    // Cookien er væk, udløbet eller forfalsket. Ét nyt Entra-hop — men kun ét (`f=1`).
+    if (forsoegt) {
+      return side("Login lykkedes ikke",
+        "Vi kunne ikke bekræfte dit AO-login. Prøv igen, eller kontakt en administrator.", 401);
+    }
+    const tilbage = `/api/poc-login?returnTo=${encodeURIComponent(maal.toString())}&f=1`;
+    return Response.redirect(
+      new URL(`/api/auth/login?next=${encodeURIComponent(tilbage)}`, url.origin), 302);
+  }
+
+  const paastand = await signJwt(broNoegle, { sub: bruger.sub, email: bruger.email },
+    BRO_TTL_SECONDS, BRO_AUD);
 
   let svar: Response;
   try {
     svar = await fetch(`${api.replace(/\/$/, "")}/platform/session-from-sso`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ session, app: maal.hostname }),
+      body: JSON.stringify({ session: paastand, app: maal.hostname }),
     });
   } catch (err) {
     console.error("poc-login: kunne ikke naa control-planen:", err instanceof Error ? err.message : String(err));

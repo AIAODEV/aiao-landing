@@ -210,8 +210,26 @@ POC'ernes middleware sender en ikke-indlogget bruger til `PLATFORM_LOGIN_URL`. P
 `next` (`safeNextPath`), og det værn er hærdet tre gange mod open redirects (`//`, `/\`, `%09`).
 Ligger endpointet her, er `next` en almindelig lokal sti, og vi behøver ikke røre det.
 
-**Ny env-variabel:** `CONTROL_PLANE_API_URL` (Vercel, Production + Preview) =
-control-plane-backendens URL på Railway. Mangler den, svarer endpointet 503 og kalder ikke ud.
+**To nye env-variabler** (Vercel, Production + Preview). Mangler én af dem, svarer endpointet 503
+**og kalder ikke ud**:
+
+| | |
+|---|---|
+| `CONTROL_PLANE_API_URL` | Control-plane-backendens URL på Railway |
+| `POC_LOGIN_KEY` | Nøglen påstanden til control-planen signeres med. Samme værdi som `SSO_BRO_KEY` dér |
+
+**`POC_LOGIN_KEY` er en ANDEN nøgle end `SESSION_SECRET`, og det er ikke en detalje.** Endpointet
+verificerer www's session-cookie **selv** og sender kun `{sub, email}` videre, signeret med
+`POC_LOGIN_KEY` og med 60 sekunders levetid. Så:
+
+- `SESSION_SECRET` forlader aldrig www — en kompromitteret control-plane kan ikke forfalske et
+  www-login;
+- en rotation af `POC_LOGIN_KEY` logger **ingen** ud af `www.aiao.dev`;
+- og nøglen kan sættes uden at nogen skal kunne **læse** en eksisterende hemmelighed, hvilket man i
+  praksis ikke kan når Vercel-variablen er markeret `Sensitive`.
+
+Test-låst: kaldet til control-planen må ikke indeholde session-cookien, og www's egen nøgle må ikke
+kunne verificere påstanden.
 
 ### To ting man ikke må løsne
 
