@@ -195,3 +195,36 @@ bivirkning.
 
 Ved en ændring: `tests/cookie-domaene.test.ts` dækker begge, inkl. callbackens **succes-sti** —
 som var utestet indtil da (de gamle callback-tests rammer kun de tidlige afvisninger).
+
+## `/api/poc-login` — vejen der sætter POC'erne bag AO SSO (2026-08-25)
+
+POC'ernes middleware sender en ikke-indlogget bruger til `PLATFORM_LOGIN_URL`. Peger den på
+`https://www.aiao.dev/api/poc-login?returnTo=<poc>/auth/aiao`, sker resten her:
+
+1. Ingen `aiao_session`? → gennem www's eget Entra-flow og tilbage hertil.
+2. Veksl sessionen til et platform-token hos control-planen
+   (`POST /platform/session-from-sso`).
+3. Redirect til POC'ens `/auth/aiao?pt=<token>`.
+
+**Hvorfor på www og ikke på admin.aiao.dev:** www's login accepterer kun **lokale** stier som
+`next` (`safeNextPath`), og det værn er hærdet tre gange mod open redirects (`//`, `/\`, `%09`).
+Ligger endpointet her, er `next` en almindelig lokal sti, og vi behøver ikke røre det.
+
+**Ny env-variabel:** `CONTROL_PLANE_API_URL` (Vercel, Production + Preview) =
+control-plane-backendens URL på Railway. Mangler den, svarer endpointet 503 og kalder ikke ud.
+
+### To ting man ikke må løsne
+
+**`returnTo`-allowlisten ER sikkerhedsgrænsen.** Platform-tokenet rejser i URL'en til den adresse
+`returnTo` peger på, og tokenets audience er i dag den brede `aiao-poc` — et lækket token virker
+derfor på **hver** POC. Reglen er identisk med control-plane-frontendens `validReturnTo`: `https`,
+**ét** label under `aiao.dev`/`aiao.work`, og præcis stien `/auth/aiao`. Et ugyldigt mål giver 400
+og **redirecter ingen steder**.
+
+**Løkke-værnet.** En bruger uden platform-konto på en **låst** POC får `kraever_konto: true` fra
+broen. Sendte vi hende videre med tokenet, ville POC'ens gate afvise det (andet nøglesæt) og sende
+hende hertil igen — i ring, uden en eneste besked. Derfor svarer endpointet 403 med en forklaring.
+Samme grund til `f=1`-markøren: vi hopper gennem Entra **højst én gang** før vi giver op med tekst.
+
+Alt ovenstående er test-låst i `tests/poc-login.test.ts` (25 tests), og hvert værn er efterprøvet
+ved at fjerne det og se testene blive røde.
