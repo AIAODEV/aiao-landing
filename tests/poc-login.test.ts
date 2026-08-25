@@ -263,3 +263,27 @@ describe("de to 401-aarsager kan kendes fra hinanden", () => {
     expect(await tekstNaar(401, true)).toContain("to n");   // "to nøgler"
   });
 });
+
+describe("fingeraftryk", () => {
+  it("samme noegle giver samme aftryk, forskellig giver forskelligt", async () => {
+    const hent = async () => (await (await kald(
+      "https://www.aiao.dev/api/poc-login?fingeraftryk=1")).json()).fingeraftryk;
+    const a = await hent();
+    process.env.POC_LOGIN_KEY = BRO_NOEGLE;
+    expect(await hent()).toBe(a);
+    process.env.POC_LOGIN_KEY = BRO_NOEGLE + " ";   // et ekstra mellemrum: den hyppigste fejl
+    expect(await hent()).not.toBe(a);
+  });
+
+  it("roeber ikke noeglen", async () => {
+    const r = await (await kald("https://www.aiao.dev/api/poc-login?fingeraftryk=1")).json();
+    expect(r.fingeraftryk).toHaveLength(8);
+    expect(JSON.stringify(r)).not.toContain(BRO_NOEGLE);
+  });
+
+  it("uden noegle er aftrykket null", async () => {
+    delete process.env.POC_LOGIN_KEY;
+    const r = await (await kald("https://www.aiao.dev/api/poc-login?fingeraftryk=1")).json();
+    expect(r.fingeraftryk).toBeNull();
+  });
+});

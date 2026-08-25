@@ -63,8 +63,30 @@ function side(titel: string, tekst: string, status: number): Response {
   );
 }
 
+/** De første 8 hex-tegn af SHA-256 over en værdi. Se `fingeraftryk`-endpointet nedenfor. */
+async function aftrykAf(vaerdi: string): Promise<string> {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(vaerdi));
+  return Array.from(new Uint8Array(bytes)).map((b) => b.toString(16).padStart(2, "0"))
+    .join("").slice(0, 8);
+}
+
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
+
+  // Fingeraftryk af bro-nøglen — modstykke til control-planens `/platform/bro-fingeraftryk`.
+  // En delt hemmelighed mellem to systemer fejler oftest ved at de to sider IKKE har samme værdi,
+  // og uden en måde at se det på bliver fejlsøgningen "prøv igen og håb". Aftrykket røber ingen ny
+  // evne: enhver kan i forvejen afprøve et gæt ved at signere en påstand og kalde broen.
+  if (url.searchParams.get("fingeraftryk") === "1") {
+    const n = process.env.POC_LOGIN_KEY;
+    return new Response(JSON.stringify({
+      fingeraftryk: n ? await aftrykAf(n) : null,
+      aud: BRO_AUD,
+      ttl: BRO_TTL_SECONDS,
+      control_plane_url: process.env.CONTROL_PLANE_API_URL ? "sat" : null,
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  }
+
   const maal = gyldigReturnTo(url.searchParams.get("returnTo"));
   if (!maal) {
     // Redirect ALDRIG videre på et ugyldigt mål — så ville værnet være en formalitet.
