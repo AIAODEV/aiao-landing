@@ -170,3 +170,28 @@ der står i topbar-markup'en (256×256, pakket i en ægte ICO-container med PNG-
 skiftes, så skift logoet og gen-generér ikonet ud fra det — så kan de to ikke komme ud af sync.
 `favicon.ico` er bevidst undtaget fra Entra-gaten i `middleware.ts` (matcheren), så ikonet også
 kan hentes uden session.
+
+## Session-cookien gælder HELE `.aiao.dev` (2026-08-25)
+
+`aiao_session` sættes med `Domain=.aiao.dev`, ikke vært-bundet til `www`. Grunden ligger uden for
+dette repo: platformens POC'er lever på `<slug>-poc.aiao.dev` — **andre værter i andre
+Vercel-projekter** — så en vært-bundet cookie følger ikke med derhen. Med domænet rækker ét
+AO-login på tværs, og control-planen kan veksle det til et platform-token.
+Fuld spec: `aiao-control-plane/docs/spec-ao-sso-foran-alle-poc.md`.
+
+**Følgen, sagt højt:** cookien sendes nu med hvert kald til enhver `*.aiao.dev`-vært, altså også til
+apps byggerne selv skriver. Den er `HttpOnly`, så deres JavaScript ikke kan læse den — men den er
+inden for serverens rækkevidde i hver POC. Bevidst udvidelse (ejer-beslutning JAW), ikke en
+bivirkning.
+
+**To ting der er nemme at brække, og som er test-låst:**
+
+1. **Rydning skal bruge SAMME form som sætningen.** En cookie med `Domain=.aiao.dev` og en
+   vært-bundet cookie med samme navn er **to forskellige cookies** for browseren. Rydder `logout`
+   kun den ene, overlever sessionen — tavst. Derfor rydder både `logout` og `callback` **begge**
+   former.
+2. **`aiao_oauth_tx` bliver vært-bundet.** Den lever ti minutter og bruges kun på www under selve
+   login-hoppet; det snævreste der virker, er det rigtige.
+
+Ved en ændring: `tests/cookie-domaene.test.ts` dækker begge, inkl. callbackens **succes-sti** —
+som var utestet indtil da (de gamle callback-tests rammer kun de tidlige afvisninger).

@@ -1,4 +1,4 @@
-import { getConfig, REDIRECT_URI, SESSION_COOKIE, SESSION_TTL_SECONDS, STATE_COOKIE, SESSION_AUD, STATE_AUD } from "../../lib/config";
+import { getConfig, REDIRECT_URI, SESSION_COOKIE, SESSION_COOKIE_DOMAIN, SESSION_TTL_SECONDS, STATE_COOKIE, SESSION_AUD, STATE_AUD } from "../../lib/config";
 import { signJwt, verifyJwt } from "../../lib/jwt";
 import { exchangeCode, validateIdToken } from "../../lib/oauth";
 import { parseCookies, serializeCookie, safeNextPath } from "../../lib/http";
@@ -49,8 +49,17 @@ export default async function handler(req: Request): Promise<Response> {
   const next = safeNextPath(tx.next);
 
   const headers = new Headers({ location: next });
+  // Sessionen sættes på HELE `.aiao.dev`, så ét AO-login rækker til POC'erne (spec §6.1).
   headers.append("set-cookie", serializeCookie(SESSION_COOKIE, session, {
     maxAge: SESSION_TTL_SECONDS, httpOnly: true, secure: true, sameSite: "Lax", path: "/",
+    domain: SESSION_COOKIE_DOMAIN,
+  }));
+  // Ryd den GAMLE, vært-bundne cookie. Brugere der allerede var logget ind har den, og de to er
+  // forskellige cookies med samme navn — begge ville blive sendt, og hvilken der vinder er ikke
+  // vores at bestemme. Uden denne linje ville en gammel session kunne overleve i op til 8 timer
+  // og skygge for den nye.
+  headers.append("set-cookie", serializeCookie(SESSION_COOKIE, "", {
+    maxAge: 0, httpOnly: true, secure: true, sameSite: "Lax", path: "/",
   }));
   headers.append("set-cookie", serializeCookie(STATE_COOKIE, "", { maxAge: 0, httpOnly: true, secure: true, sameSite: "Lax", path: "/" }));
   return new Response(null, { status: 302, headers });

@@ -14,10 +14,14 @@ export function parseCookies(header: string | null): Record<string, string> {
 export function serializeCookie(
   name: string,
   value: string,
-  opts: { maxAge?: number; path?: string; httpOnly?: boolean; secure?: boolean; sameSite?: "Lax" | "Strict" | "None" } = {},
+  opts: { maxAge?: number; path?: string; httpOnly?: boolean; secure?: boolean; sameSite?: "Lax" | "Strict" | "None"; domain?: string } = {},
 ): string {
   const parts = [`${name}=${encodeURIComponent(value)}`];
   parts.push(`Path=${opts.path ?? "/"}`);
+  // Uden `Domain` er cookien VÆRT-bundet (kun www.aiao.dev). Med `Domain=.aiao.dev` gælder den
+  // alle underdomæner. De to er FORSKELLIGE cookies for browseren, også med samme navn — derfor
+  // skal en rydning bruge samme form som sætningen, ellers rammer den ved siden af.
+  if (opts.domain) parts.push(`Domain=${opts.domain}`);
   if (opts.maxAge !== undefined) parts.push(`Max-Age=${opts.maxAge}`);
   if (opts.httpOnly) parts.push("HttpOnly");
   if (opts.secure) parts.push("Secure");
