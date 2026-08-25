@@ -227,3 +227,39 @@ describe("lækager", () => {
     expect(await res.text()).not.toContain(s);
   });
 });
+
+/**
+ * De to 401-årsager har vidt forskellige rettelser: den ene er brugerens browser-session, den
+ * anden er to env-variabler der skulle være ens. Første udgave gav dem SAMME tekst, og da fejlen
+ * så opstod i produktion kunne beskeden ikke fortælle hvilken det var — vi måtte gætte.
+ * Ét tegn må ikke bære to betydninger.
+ */
+describe("de to 401-aarsager kan kendes fra hinanden", () => {
+  async function tekstNaar(broStatus: number, sessionOk: boolean): Promise<string> {
+    broSvarer({ detail: "nej" }, broStatus);
+    const cookie = sessionOk
+      ? await session()
+      : await signJwt("en-forkert-noegle-xxxxxxxxxxxxxxxx",
+          { sub: "o", email: "a@ao.dk" }, 3600, SESSION_AUD);
+    const res = await kald(
+      `https://www.aiao.dev/api/poc-login?returnTo=${encodeURIComponent(POC)}&f=1`,
+      `aiao_session=${cookie}`);
+    expect(res.status).toBe(401);
+    return res.text();
+  }
+
+  it("session-fejl og bro-fejl giver FORSKELLIG tekst", async () => {
+    const sessionFejl = await tekstNaar(200, false);
+    const broFejl = await tekstNaar(401, true);
+    expect(sessionFejl).not.toBe(broFejl);
+  });
+
+  it("hver besked baerer sin egen kode, saa den kan slaas op", async () => {
+    expect(await tekstNaar(200, false)).toContain("[kode: SESSION]");
+    expect(await tekstNaar(401, true)).toContain("[kode: BRO]");
+  });
+
+  it("bro-fejlen peger paa den hyppigste aarsag: to noegler der ikke er ens", async () => {
+    expect(await tekstNaar(401, true)).toContain("to n");   // "to nøgler"
+  });
+});

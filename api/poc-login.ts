@@ -107,8 +107,13 @@ export default async function handler(req: Request): Promise<Response> {
   if (!bruger?.email || !bruger?.sub) {
     // Cookien er væk, udløbet eller forfalsket. Ét nyt Entra-hop — men kun ét (`f=1`).
     if (forsoegt) {
-      return side("Login lykkedes ikke",
-        "Vi kunne ikke bekræfte dit AO-login. Prøv igen, eller kontakt en administrator.", 401);
+      console.error("poc-login: www kunne ikke verificere sin EGEN session-cookie");
+      // Teksten SKAL skille sig fra bro-fejlen nedenfor. De to har vidt forskellige årsager —
+      // her er det www's egen cookie, dér er det nøglerne mellem de to systemer — og en fælles
+      // tekst gør fejlsøgningen til gætteri. (Ét tegn må ikke bære to betydninger.)
+      return side("Dit AO-login kunne ikke læses",
+        "Sessionen i din browser kunne ikke bekræftes her. Log ud på www.aiao.dev og ind igen, "
+        + "eller prøv et almindeligt vindue (ikke privat browsing). [kode: SESSION]", 401);
     }
     const tilbage = `/api/poc-login?returnTo=${encodeURIComponent(maal.toString())}&f=1`;
     return Response.redirect(
@@ -132,10 +137,15 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   if (svar.status === 401) {
-    // Sessionen er udløbet eller ugyldig. Ét forsøg gennem Entra igen — men kun ét (`f=1`).
+    // Ét forsøg gennem Entra igen — men kun ét (`f=1`).
     if (forsoegt) {
-      return side("Login lykkedes ikke",
-        "Vi kunne ikke bekræfte dit AO-login. Prøv igen, eller kontakt en administrator.", 401);
+      console.error("poc-login: control-planen AFVISTE vores paastand (401) — "
+        + "POC_LOGIN_KEY her og SSO_BRO_KEY dér er sandsynligvis ikke samme vaerdi");
+      // Den HYPPIGSTE aarsag staar foerst: to nøgler der skulle være ens, er det ikke. Beskeden
+      // siger det uden at røbe noget — en administrator ved med det samme hvor han skal kigge.
+      return side("Platformen godtog ikke dit login",
+        "Dit AO-login er i orden, men platformen kunne ikke bekræfte det. Det skyldes næsten "
+        + "altid at to nøgler ikke er ens. Kontakt en administrator. [kode: BRO]", 401);
     }
     const tilbage = `/api/poc-login?returnTo=${encodeURIComponent(maal.toString())}&f=1`;
     return Response.redirect(
