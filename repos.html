@@ -159,7 +159,7 @@
     .cp-provchip--on::before { background: #16A34A; }
     .cp-provchip--off { background: #F2F2F2; border-color: #DADADA; color: #8A8A8A; }
     .cp-provchip--off::before { background: #CFCFCF; }
-    /* Privacy-slider (spejler admin-terminal.css): grøn "Åben" ↔ rød "Låst" 🔒, yderst til højre. */
+    /* Privacy-slider (spejler admin-terminal.css): grøn "Åben" ↔ rød "Låst" 🔒, yderst til højre.
     .cp-privtoggle { margin-left:auto; display:inline-flex; align-items:center; gap:8px; font-size:11px; }
     .cp-privtoggle .cp-privlabel { font-weight:600; letter-spacing:.02em; color:#6b6b6b; }
     .cp-privtoggle .cp-privtrack { position:relative; width:100px; height:26px; border-radius:999px; border:1px solid; cursor:pointer; padding:0; background:none; transition:background .15s, border-color .15s; display:inline-flex; align-items:center; }
@@ -533,9 +533,9 @@
       var laast=(r.adgang==="laast");
       return '<span class="cp-privtoggle"><span class="cp-privlabel">Login</span>'+
         '<button type="button" class="cp-privtrack '+(laast?"cp-privtrack--priv":"cp-privtrack--pub")+'" '+
-        'data-adg="'+esc(r.poc)+'" data-adgcur="'+(laast?"laast":"aaben")+'" '+
-        'title="Låst = man skal logge ind med sin AIAO-konto for at åbne appen. Det gælder alle appens adresser. Ændringen er i luften efter ca. 1 minut — du behøver ikke gøre mere.">'+
-        '<span class="cp-privtext">'+(laast?"Låst":"Åben")+"</span>"+
+        'data-adg="'+esc(r.poc)+'" data-adgcur="'+(laast?"laast":"ao")+'" '+
+        'title="Alt bag AO-login: begge niveauer kræver et AO Microsoft-login — ingen af dem er åbne for internettet. Låst = derudover kræves en AIAO-konto med en tildelt rolle. Gælder appens poc-adresse; et drift-miljø har sit eget niveau. Ændringen er i luften efter ca. 1 minut — du behøver ikke gøre mere.">'+
+        '<span class="cp-privtext">'+(laast?"Låst":"AO-login")+"</span>"+
         '<span class="cp-privknob">'+padlockSvg(laast)+"</span></button></span>";
     }
     // API-slider (skive 3) — låser appens EGEN backend (data + AI). Vises KUN når siderne allerede
@@ -1251,7 +1251,7 @@
     }
     function toggleAdgang(btn, poc, cur){
       if(!session) return;
-      var next=(cur==="laast")?"aaben":"laast";
+      var next=(cur==="laast")?"ao":"laast";
       btn.disabled=true;
       fetch(API+"/pocs/"+encodeURIComponent(poc)+"/adgang",{
         method:"POST", headers:{ Authorization:"Bearer "+session, "Content-Type":"application/json" },
@@ -1269,7 +1269,7 @@
         var laast=(next==="laast");
         btn.setAttribute("data-adgcur",next);
         btn.className="cp-privtrack "+(laast?"cp-privtrack--priv":"cp-privtrack--pub");
-        var t=btn.querySelector(".cp-privtext"); if(t) t.textContent=(laast?"Låst":"Åben");
+        var t=btn.querySelector(".cp-privtext"); if(t) t.textContent=(laast?"Låst":"AO-login");
         var k=btn.querySelector(".cp-privknob"); if(k) k.innerHTML=padlockSvg(laast);
         // API-slideren hører til side-låsen: vis den når siderne låses, skjul den når de åbnes.
         // Serveren kaskaderer BEGGE veje (2026-08-24): åbnes siderne frigives API-låsen; låses de,
@@ -1297,7 +1297,7 @@
           ? (apiFulgteMed
               ? "Låst — appen kræver nu AIAO-login, og API-låsen fulgte automatisk med. Ændringen er i luften."
               : "Låst — appen kræver nu AIAO-login. Ændringen er i luften." + apiInfo)
-          : "Åben — låsen er fjernet, og ændringen er i luften.");
+          : "AO-login — den ekstra lås er fjernet. Appen kræver stadig et AO Microsoft-login; ingen adresse er åben for internettet. Ændringen er i luften.");
         });
       }).catch(function(){ btn.disabled=false; adgMsg(poc,"err","Kunne ikke ændre adgangs-låsen."); });
     }
