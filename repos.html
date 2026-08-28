@@ -360,7 +360,7 @@
             <span style="font-size:13px;color:var(--muted);">Logget ind som <b id="loginWho" style="color:var(--text);font-weight:600;"></b></span>
             <button id="logoutBtn" class="cp-btn cp-btn--ghost" style="white-space:nowrap;" title="Log ud af din AIAO-konto. Listen viser derefter kun de offentlige POC'er.">Log ud</button>
           </span>
-          <button id="requestBtn" class="cp-btn cp-btn--ghost" style="white-space:nowrap;display:none;" title="Bed om en ny POC — udfyld navn og formål, så kigger en admin på anmodningen.">+ Anmod om ny POC</button>
+          <button id="requestBtn" class="cp-btn cp-btn--primary" style="white-space:nowrap;display:none;" title="Bed om en ny POC — udfyld navn og formål, så kigger en admin på anmodningen.">+ Anmod om ny POC</button>
         </div>
       </div>
       <div id="grid" class="grid"><div class="state">Henter POC'er ...</div></div>
@@ -1034,7 +1034,8 @@
       saetTopbarTop();
       window.addEventListener("resize", saetTopbarTop);
     })();
-    loadRepos();
+    // Første hentning sker NEDERST (startSide) — efter at en gemt session er genoprettet, så en
+    // ejer ser sine private kort fra første tegning i stedet for at skulle logge ind igen.
 
     // ── Anmod om ny POC (bygger/godkender/admin — IKKE viewer, ejer-beslutning 2026-08-24) ──
     // Knappen er skjult til man er logget ind OG har en rolle der må anmode. Serveren håndhæver
@@ -1166,9 +1167,59 @@
       } else { ind.style.display=""; ud.style.display="none"; }
       showRequestBtn();
     }
-    // Sessionen bor KUN i hukommelsen (aldrig i localStorage) — derfor er man logget ud igen efter
-    // en genindlæsning. Hver 401 rydder tilstanden her, så knappen aldrig kommer bagud for virkeligheden.
-    function ryddSession(){ session=null; sessionEmail=null; sessionRolle=null; opdaterLoginStatus(); }
+    // Sessionen GEMMES i browseren (localStorage) og fornyes stille før udløb — som admin.aiao.dev.
+    // Ejer-beslutning JAW 2026-08-28: hukommelses-kun-reglen (PR #16) gav et nyt login ved HVER
+    // genindlæsning og efter ~1 time, og www ligger i forvejen bag AO's Microsoft-login. Man er inde
+    // til man trykker Log ud, eller til fornyelsen afvises. Hver 401 rydder tilstanden her, så knappen
+    // aldrig kommer bagud for virkeligheden. (Navnet er bevidst ikke KEY/TOKEN — Snyk dømmer på navnet.)
+    var LAGER_NAVN="aiao.repos.session", fornyTimer=null;
+    function gemSession(j){
+      var udloeb=j.expires_at||(Math.floor(Date.now()/1000)+(j.expires_in||3600));
+      try{ localStorage.setItem(LAGER_NAVN, JSON.stringify({ access_token:j.access_token, refresh_token:j.refresh_token, expires_at:udloeb, email:sessionEmail })); }catch(e){}
+      planlaegFornyelse(udloeb);
+    }
+    function laesSession(){ try{ var s=localStorage.getItem(LAGER_NAVN); return s?JSON.parse(s):null; }catch(e){ return null; } }
+    // Forny 2 min før udløb (mindst 10 s ude) — et adgangs-token lever ~1 time.
+    function planlaegFornyelse(udloeb){
+      if(fornyTimer) clearTimeout(fornyTimer);
+      var ms=Math.max(10000,(udloeb-Math.floor(Date.now()/1000)-120)*1000);
+      fornyTimer=setTimeout(fornySession, ms);
+    }
+    // Bytter refresh-tokenet til et nyt par. Afvises det (udløbet, logget ud andetsteds) ryddes alt
+    // og listen hentes igen uden token — så kortene aldrig står som om man var inde.
+    function fornySession(){
+      var g=laesSession(); if(!g||!g.refresh_token){ return Promise.resolve(false); }
+      return getAuthCfg().then(function(c){
+        return fetch(c.supabase_url+"/auth/v1/token?grant_type=refresh_token",{
+          method:"POST", headers:{ "Content-Type":"application/json", apikey:c.anon_key },
+          body:JSON.stringify({ refresh_token:g.refresh_token })
+        });
+      }).then(function(r){ return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error("forny"); return j; }); })
+        .then(function(j){ session=j.access_token; sessionEmail=(j.user&&j.user.email)||g.email||sessionEmail; gemSession(j); opdaterLoginStatus(); return true; })
+        .catch(function(){ var varInde=!!session; ryddSession(); if(varInde) loadRepos(); return false; });
+    }
+    // Ved sidestart: genopret en gemt session (forny hvis den er ved at udløbe), slå rollen op, og
+    // hent listen — MED token hvis genoprettelsen lykkedes.
+    function genopretSession(){
+      var g=laesSession(); if(!g||!g.access_token) return Promise.resolve();
+      var nu=Math.floor(Date.now()/1000);
+      var klar=(g.expires_at&&g.expires_at-nu>120)
+        ? (session=g.access_token, sessionEmail=g.email||null, planlaegFornyelse(g.expires_at), Promise.resolve(true))
+        : fornySession();
+      return klar.then(function(ok){
+        if(!ok||!session) return;
+        return fetch(API+"/me",{ headers:{ Authorization:"Bearer "+session } })
+          .then(function(r){ if(r.status===401){ ryddSession(); return null; } return r.ok ? r.json().catch(function(){return null;}) : null; })
+          .catch(function(){ return null; })
+          .then(function(me){ if(session) sessionRolle=(me&&me.rolle)||null; });
+      }).then(opdaterLoginStatus);
+    }
+    function ryddSession(){
+      session=null; sessionEmail=null; sessionRolle=null;
+      if(fornyTimer){ clearTimeout(fornyTimer); fornyTimer=null; }
+      try{ localStorage.removeItem(LAGER_NAVN); }catch(e){}
+      opdaterLoginStatus();
+    }
     var loginBg=document.getElementById("loginBg");
     var liEmail=document.getElementById("li-email"), liPw=document.getElementById("li-pw"), liErr=document.getElementById("li-err");
     var LABEL={brugerguide:"brugerguide", loesningsbeskrivelse:"løsningsbeskrivelse", snyk:"Snyk-rapport", praesentation:"oplæg"};
@@ -1745,6 +1796,7 @@
       }).then(function(r){ if(!r) return; return r.json().then(function(j){ if(!r.ok||!j.access_token) throw new Error(j.error_description||j.msg||"Forkert email eller password."); return j; }); })
         .then(function(j){ if(!j) return; session=j.access_token;
           sessionEmail=(j.user&&j.user.email)||email;
+          gemSession(j);  // overlever reload + fornyes før udløb
           liPw.value=""; closeLogin();
           // Rollen hentes FØR videre render: VS Code- og Anmod-knappernes synlighed afgøres af den
           // (ejer-beslutning 2026-08-24). Fejl → null = mindst synlighed; serveren håndhæver uanset.
@@ -1772,6 +1824,9 @@
     document.getElementById("li-cancel").addEventListener("click",function(){ pending=null; closeLogin(); });
     liPw.addEventListener("keydown",function(e){ if(e.key==="Enter") doLogin(); });
     loginBg.addEventListener("click",function(e){ if(e.target===loginBg){ pending=null; closeLogin(); } });
+    // Sidestart: genopret en gemt session FØR første hentning (ellers tegnes gridet først uden
+    // de private kort og så igen med — og "Log ind" ville blinke forbi for en der ER inde).
+    genopretSession().then(loadRepos, loadRepos);
   </script>
 </body>
 </html>
