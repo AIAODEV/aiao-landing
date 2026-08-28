@@ -412,6 +412,9 @@
         <button class="btn primary" id="li-go">Log ind</button>
         <button class="btn" id="li-cancel">Annullér</button>
       </div>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn" id="li-glemt" type="button" title="Skriv din email ovenfor og tryk her — så får du en mail med et link til at vælge en ny adgangskode.">Glemt adgangskode?</button>
+      </div>
     </div>
   </div>
 
@@ -1820,6 +1823,22 @@
         })
         .catch(function(e){ if(e&&e.message&&e.message!=="no-config") liErr.textContent=e.message; });
     }
+    // Glemt adgangskode (2026-08-28): samme Supabase-endpoint som admin.aiao.dev's login-side.
+    // Beskeden er ALTID den samme — uanset om adressen findes — så knappen ikke kan bruges til at
+    // gætte hvem der har en konto. Linket i mailen lander på admin.aiao.dev/saet-password.
+    var GLEMT_BESKED="Hvis adressen er oprettet på platformen, har du fået en mail med et link til at vælge en ny adgangskode. Kig også i spam. Virker linket ikke, så bed en admin sende et nyt.";
+    function doGlemt(){
+      var email=liEmail.value.trim();
+      if(!email){ liErr.textContent="Skriv din email i feltet ovenfor, så sender vi et link."; return; }
+      liErr.textContent="Sender …";
+      getAuthCfg().then(function(c){
+        return fetch(c.supabase_url+"/auth/v1/recover",{
+          method:"POST", headers:{ "Content-Type":"application/json", apikey:c.anon_key },
+          body:JSON.stringify({ email:email, redirect_to:"https://admin.aiao.dev/saet-password" })
+        });
+      }).catch(function(){}).then(function(){ liErr.textContent=GLEMT_BESKED; });
+    }
+    document.getElementById("li-glemt").addEventListener("click",doGlemt);
     document.getElementById("li-go").addEventListener("click",doLogin);
     document.getElementById("li-cancel").addEventListener("click",function(){ pending=null; closeLogin(); });
     liPw.addEventListener("keydown",function(e){ if(e.key==="Enter") doLogin(); });
