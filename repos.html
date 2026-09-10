@@ -159,6 +159,11 @@
     .cp-provchip--on::before { background: #16A34A; }
     .cp-provchip--off { background: #F2F2F2; border-color: #DADADA; color: #8A8A8A; }
     .cp-provchip--off::before { background: #CFCFCF; }
+    /* Tri-state fra `probe` (spejler admin-terminal.css): gul "?" = ingen dom · rød "✗" = målt i stykker. */
+    .cp-provchip--pending { background: #FFF7E6; border-color: #F5E1B8; color: #8A6D1F; }
+    .cp-provchip--pending::before { background: #F3A81F; }
+    .cp-provchip--fail { background: #FDECEC; border-color: #F5C2C2; color: #B71722; }
+    .cp-provchip--fail::before { background: #E11D2A; }
     /* Privacy-slider (spejler admin-terminal.css): grøn "Åben" ↔ rød "Låst" 🔒, yderst til højre. */
     .cp-privtoggle { margin-left:auto; display:inline-flex; align-items:center; gap:8px; font-size:11px; }
     .cp-privtoggle .cp-privlabel { font-weight:600; letter-spacing:.02em; color:#6b6b6b; }
@@ -524,6 +529,19 @@
     function host(r){ if(r.live_url){try{return new URL(r.live_url).host;}catch(e){}} return r.poc+".aiao.dev"; }
     function fmtDate(iso){ if(!iso) return "-"; var d=new Date(iso); if(isNaN(d.getTime())) return "-"; try{return d.toLocaleDateString("da-DK",{day:"numeric",month:"long",year:"numeric"});}catch(e){return iso;} }
     function provchip(on,label){ return '<span class="cp-provchip cp-provchip--'+(on?"on":"off")+'">'+esc(label)+" "+(on?"✓":"✗")+"</span>"; }
+    // Tri-state fra /public/repos `probe` (0034): true ✓ · false ✗ (rød) · null/ingen dom "?" (gul).
+    // Spejler admin-PocCard: et manglende `probe` (ældre API, eller en POC der aldrig er målt) er ALDRIG grønt.
+    function provchip3(v,label,titel){
+      var st = v===true?"on":v===false?"fail":"pending";
+      var g  = v===true?"✓":v===false?"✗":"?";
+      return '<span class="cp-provchip cp-provchip--'+st+'" title="'+esc(titel||"")+'">'+esc(label)+" "+g+"</span>"; }
+    function probeAf(r,k){ return (r.probe && k in r.probe) ? r.probe[k] : null; }
+    function probeTitel(v,r){
+      var maalt = r.probe && r.probe.maalt ? new Date(r.probe.maalt) : null;
+      var hvornaar = maalt && !isNaN(maalt.getTime()) ? " · målt "+maalt.toLocaleString("da-DK") : "";
+      // null MED et måletidspunkt = proben kørte, men gav ingen dom for dette led — ikke det samme som "aldrig målt".
+      return v===true ? "Målt i orden"+hvornaar : v===false ? "Målt i stykker"+hvornaar : hvornaar ? "Kunne ikke måles"+hvornaar : "Ikke målt endnu"; }
+    function probechip(r,k,label){ var v=probeAf(r,k); return provchip3(v,label,probeTitel(v,r)); }
     // Hængelås-SVG (lucide-agtig) — /repos har ikke lucide, så inline. locked=lukket bøjle.
     function padlockSvg(locked){ return locked
       ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
@@ -614,8 +632,8 @@
       var vscodeUrl="vscode://vscode.git/clone?url=https://github.com/"+GITHUB_ORG+"/"+encodeURIComponent(r.poc)+".git";
       // Provider-tjek-chips (admin-stil "GitHub ✓ …") bor i detaljerne; Live/TEST/DRIFT-badges i headeren.
       var prov='<div class="cp-provrow">'+
-        provchip(r.has_github,"GitHub")+provchip(r.has_vercel,"Vercel")+
-        provchip(r.has_railway,"Railway")+provchip(r.has_supabase,"Supabase")+
+        probechip(r,"github","GitHub")+probechip(r,"vercel","Vercel")+
+        probechip(r,"railway","Railway")+probechip(r,"supabase","Supabase")+
         provchip(r.is_live,"Live")+adgtoggle(r)+apitoggle(r)+privtoggle(r)+"</div>"+
         // Efemer note-plads til adgangs-slideren (kun egne kort): "husk genudgivelse" efter toggle.
         (r.is_mine?'<div class="docmsg" id="adgmsg-'+encodeURIComponent(r.poc)+'" style="min-height:0;margin-top:0"></div>':"");
