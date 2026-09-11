@@ -159,7 +159,8 @@
     .cp-provchip--on::before { background: #16A34A; }
     .cp-provchip--off { background: #F2F2F2; border-color: #DADADA; color: #8A8A8A; }
     .cp-provchip--off::before { background: #CFCFCF; }
-    /* Tri-state fra `probe` (spejler admin-terminal.css): gul "?" = ingen dom · rød "✗" = målt i stykker. */
+    /* Dommen fra `probe` (spejler admin-terminal.css): gul "?" = kunne ikke måles · rød "✗" = målt i
+       stykker · grå "—" (--off) = neutralt fravær, der var intet at måle på. Glyph/klasse: se probeStat(). */
     .cp-provchip--pending { background: #FFF7E6; border-color: #F5E1B8; color: #8A6D1F; }
     .cp-provchip--pending::before { background: #F3A81F; }
     .cp-provchip--fail { background: #FDECEC; border-color: #F5C2C2; color: #B71722; }
@@ -529,19 +530,49 @@
     function host(r){ if(r.live_url){try{return new URL(r.live_url).host;}catch(e){}} return r.poc+".aiao.dev"; }
     function fmtDate(iso){ if(!iso) return "-"; var d=new Date(iso); if(isNaN(d.getTime())) return "-"; try{return d.toLocaleDateString("da-DK",{day:"numeric",month:"long",year:"numeric"});}catch(e){return iso;} }
     function provchip(on,label){ return '<span class="cp-provchip cp-provchip--'+(on?"on":"off")+'">'+esc(label)+" "+(on?"✓":"✗")+"</span>"; }
-    // Tri-state fra /public/repos `probe` (0034): true ✓ · false ✗ (rød) · null/ingen dom "?" (gul).
-    // Spejler admin-PocCard: et manglende `probe` (ældre API, eller en POC der aldrig er målt) er ALDRIG grønt.
-    function provchip3(v,label,titel){
-      var st = v===true?"on":v===false?"fail":"pending";
-      var g  = v===true?"✓":v===false?"✗":"?";
-      return '<span class="cp-provchip cp-provchip--'+st+'" title="'+esc(titel||"")+'">'+esc(label)+" "+g+"</span>"; }
+    // Fire tilstande fra /public/repos `probe` (0034) — spejler admin-PocCard 1:1 (`pocStatusDots` +
+    // `probeTitel` i control-planens frontend/lib/api.ts):
+    //   true ✓ (grøn) · false ✗ (rød) · null UDEN årsag "?" (gul: kunne ikke måles / aldrig målt)
+    //   · null MED en årsag "—" (grå, neutralt fravær: der er INTET at måle på — hverken rødt eller "ved ikke").
+    // Et manglende `probe` (ældre API, eller en POC der aldrig er målt) er ALDRIG grønt.
+    function provchip3(st,label,titel){
+      var g = st==="on" ? "✓" : st==="fail" ? "✗" : st==="na" ? "—" : "?";
+      // Klasse-navnene er CSS'ens fire, ikke tilstandenes fem: "unknown" låner den gule --pending (samme
+      // som admins klasse()), og "na" låner off's grå — aldrig gul, aldrig rød. En femte klasse findes ikke
+      // i stylesheetet, og en chip uden klasse står farveløs (målt på poc70 2026-09-11).
+      var k = st==="na" ? "off" : st==="unknown" ? "pending" : st;
+      return '<span class="cp-provchip cp-provchip--'+k+'" title="'+esc(titel||"")+'">'+esc(label)+" "+g+"</span>"; }
     function probeAf(r,k){ return (r.probe && k in r.probe) ? r.probe[k] : null; }
-    function probeTitel(v,r){
+    // Serveren skriver nøglen ALTID (også som null); dokumenter fra før 2026-09-10 mangler den ⇒ null.
+    function probeAarsag(r){ return (r.probe && r.probe.supabase_aarsag) || null; }
+    // Dommen udgik MED en årsag ⇒ neutralt fravær. En false uden årsag er stadig rød (tabellen findes,
+    // datavejen er brudt), og en null uden årsag er stadig "kunne ikke måles".
+    function probeStat(r,k){
+      var v=probeAf(r,k);
+      if(v===true) return "on";
+      if(v===false) return "fail";
+      if(k==="supabase" && probeAarsag(r)!==null) return "na";
+      return "unknown"; }
+    function probeTitel(st,r,k){
       var maalt = r.probe && r.probe.maalt ? new Date(r.probe.maalt) : null;
       var hvornaar = maalt && !isNaN(maalt.getTime()) ? " · målt "+maalt.toLocaleString("da-DK") : "";
-      // null MED et måletidspunkt = proben kørte, men gav ingen dom for dette led — ikke det samme som "aldrig målt".
-      return v===true ? "Målt i orden"+hvornaar : v===false ? "Målt i stykker"+hvornaar : hvornaar ? "Kunne ikke måles"+hvornaar : "Ikke målt endnu"; }
-    function probechip(r,k,label){ var v=probeAf(r,k); return provchip3(v,label,probeTitel(v,r)); }
+      if(st==="on")   return "Målt i orden"+hvornaar;
+      if(st==="fail") return "Målt i stykker"+hvornaar;
+      // Kun de KENDTE årsager får deres egen sætning — en ny årsag fra serveren må aldrig blive en
+      // gættet forklaring. Og de to siger IKKE det samme: den ene er målt om databasen, den anden om
+      // appens ruter — en titel må ikke påstå det den ikke har målt.
+      if(st==="na"){
+        var a=probeAarsag(r);
+        if(a==="ingen_items_tabel")
+          return "Ikke relevant: appen bruger ikke skabelonens demo-tabel \"items\" — den har egne tabeller eller ingen database"+hvornaar;
+        if(a==="ingen_items_rute")
+          return "Ikke relevant: appen har ingen /items-rute (svarer 404) — datavejen kan ikke måles udefra"+hvornaar;
+        return "Ikke relevant for denne POC"+hvornaar; }
+      // API-låst app: /items svarer 401 udefra, så dommen KAN ikke måles — en følge af låsen, ikke en
+      // fejl i appen. Uden denne sætning står et permanent "?" uden forklaring.
+      if(k==="supabase" && r.api_adgang==="laast") return "API-låst — /items kan ikke måles udefra"+hvornaar;
+      return hvornaar ? "Kunne ikke måles"+hvornaar : "Ikke målt endnu"; }
+    function probechip(r,k,label){ var st=probeStat(r,k); return provchip3(st,label,probeTitel(st,r,k)); }
     // Hængelås-SVG (lucide-agtig) — /repos har ikke lucide, så inline. locked=lukket bøjle.
     function padlockSvg(locked){ return locked
       ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
